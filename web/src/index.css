@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* Installed to the home screen and opened from there. */
+@custom-variant standalone (@media (display-mode: standalone));
+
 @theme {
   --color-brand: #4f46b5;
   --color-income: #4fb291;
@@ -19,11 +22,8 @@
  * and footer. iOS treats <html> as the root scroller, so overscroll-behavior
  * must be set there as well as on body.
  *
- * The html/body background is brand so the iOS status bar area (and anything
- * Safari samples to tint it) is solid brand, not white.
- *
- * Body height comes from --app-height, which lib/viewport.ts sets in the
- * home-screen app, where iOS reports a viewport shorter than the screen.
+ * The html/body background is brand: it is what iOS shows at the top edge if
+ * it finds no edge bar (see components/EdgeBars.tsx).
  */
 html,
 body {
@@ -35,10 +35,7 @@ body {
 
 body {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: var(--app-height, 100%);
+  inset: 0;
   color: var(--color-text);
   font-family: var(--font-sans);
 }
