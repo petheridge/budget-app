@@ -1,0 +1,10 @@
+node_modules/
+web/dist/
+web/dev-dist/
+*.local
+.env
+
+# PocketBase: binary is fetched by pocketbase/install.sh, data is never committed
+pocketbase/pocketbase
+pocketbase/pb_data/
+pocketbase/pb_public/

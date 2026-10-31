@@ -172,7 +172,14 @@ These are candidates for later phases. Structure the code so they can be added w
 
 ## Development
 
-- Run PocketBase locally (`./pocketbase serve`) and Vite (`npm run dev` in `web/`), with Vite proxying `/api` to PocketBase
+- App name: **Tally** (set in `web/vite.config.ts`, `web/index.html` and `web/src/routes/Login.tsx`)
+- First-time setup: `./pocketbase/install.sh` downloads the binary (pinned version; keep in step with the `Dockerfile`), and `npm install` in `web/`
+- Run PocketBase locally (`./pocketbase serve` in `pocketbase/`) and Vite (`npm run dev` in `web/`), with Vite proxying `/api` and the admin UI (`/_/`) to PocketBase
+- Migrations: write `new Collection({...})` fields as plain objects with a `type`. Field class instances there are silently dropped, along with the collection's rules
+- `amount_pence` is deliberately not `required`, because PocketBase treats 0 as blank and £0.00 entries are valid
+- Sign-in is a minimal extra screen at `/login`, needed because all data requires auth. Public sign-up is disabled by the initial migration
+- Menu icons: the root header menu holds Sign out; the budget detail header menu holds the same actions as a budget's ⋮
+- All records are held in memory by `web/src/lib/data.tsx`, kept current by realtime, plus a refetch on reconnect and on returning to the foreground
 - Bind Vite to `0.0.0.0` so the app can be tested on an iPhone over the LAN
 - Define the schema in **migrations** (`pb_migrations/`), never only by clicking in the admin UI
 - Unit test `money.ts`: formatting, signs, zero handling and totals
