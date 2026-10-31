@@ -18,7 +18,7 @@ export default defineConfig({
         description: 'Simple household budgets',
         display: 'standalone',
         start_url: '/',
-        theme_color: '#F7931E',
+        theme_color: '#4F46B5',
         background_color: '#F2F1ED',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
