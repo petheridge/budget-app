@@ -132,7 +132,7 @@ export function BudgetList() {
       )}
       {sheet?.kind === 'appMenu' && (
         <ActionSheet
-          title={pb.authStore.record?.email ?? 'Menu'}
+          title={pb.authStore.record?.email ? `Signed in as ${pb.authStore.record.email}` : 'Menu'}
           onClose={close}
           actions={[{ label: 'Sign out', onClick: () => pb.authStore.clear() }]}
         />
