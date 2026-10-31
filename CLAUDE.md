@@ -65,13 +65,13 @@ Household app: any authenticated user can read/write all records. No public acce
 
 ### 1. Budget list (root, and inside a folder — same screen)
 
-**Header (orange):**
+**Header (brand colour):**
 - Root: title "Budgets", add-folder icon, menu icon
 - Inside a folder: back button labelled with the parent ("‹ Budgets"), folder icon + folder name as title, add-folder icon
 
 **List:** white rounded cards with a soft shadow, gap between cards, on a light warm-grey background.
-- **Budget card:** name (left, dark grey, regular weight) · balance (right, coloured, bold) · orange chevron · vertical divider · orange ⋮ menu
-- **Folder card:** peach folder icon · name · orange chevron · ⋮ menu. No balance shown on the card.
+- **Budget card:** name (left, dark grey, regular weight) · balance (right, coloured, bold) · brand-coloured chevron · vertical divider · brand-coloured ⋮ menu
+- **Folder card:** lavender folder icon · name · brand-coloured chevron · ⋮ menu. No balance shown on the card.
 - Folders and budgets share one ordered list.
 - Tap a card to open it.
 
@@ -81,12 +81,12 @@ Household app: any authenticated user can read/write all records. No public acce
 
 ### 2. Budget detail
 
-**Header (orange):** back button labelled with the parent ("‹ 📁 Monthly" or "‹ Budgets") · budget name as title · menu icon.
+**Header (brand colour):** back button labelled with the parent ("‹ 📁 Monthly" or "‹ Budgets") · budget name as title · menu icon.
 
 **Entry list:** flat full-width white rows separated by thin grey lines (not cards).
 - Entry name (left) **and** amount (right) are both coloured by type: green for income, red-orange for expense. Medium/semibold weight.
 - If a note exists, show it as a second line under the name: small grey text with a pencil icon.
-- Vertical divider, then an orange ⋮ menu column on the right.
+- Vertical divider, then an brand-coloured ⋮ menu column on the right.
 - Empty space below the list shows the light grey background.
 
 **Bottom (pinned):**
@@ -125,7 +125,7 @@ Drag to reorder entries within a budget, and cards within a list. Persist the re
 
 | Token | Hex | Use |
 |---|---|---|
-| `brand` | `#F7931E` | Header bar, chevrons, ⋮ icons |
+| `brand` | `#4F46B5` | Header bar, chevrons, ⋮ icons |
 | `income` | `#4FB291` | Income text, Add Income button |
 | `expense` | `#EA5A2F` | Expense text, Add Expense button |
 | `action` | `#0079B6` | Add Budget button |
@@ -133,7 +133,7 @@ Drag to reorder entries within a budget, and cards within a list. Persist the re
 | `surface` | `#FFFFFF` | Cards, rows, footer |
 | `text` | `#3A3A3A` | Budget and folder names |
 | `muted` | `#8C8C8C` | Labels, notes, zero balances |
-| `folder` | `#FDD49B` | Folder icon fill |
+| `folder` | `#C9C4EE` | Folder icon fill |
 
 - Font: system UI stack (`-apple-system, …`)
 - Large, readable numbers; generous row height (about 64–72px)
