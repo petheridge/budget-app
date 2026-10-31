@@ -19,10 +19,11 @@
  * and footer. iOS treats <html> as the root scroller, so overscroll-behavior
  * must be set there as well as on body.
  *
- * The html/body background colour is brand so the iOS status bar area (and
- * anything Safari samples to tint it) is solid brand, not white. Its lower
- * half is painted surface white: in the home-screen app iOS can leave a strip
- * below the page by the home indicator, and that should match the footer.
+ * The html/body background is brand so the iOS status bar area (and anything
+ * Safari samples to tint it) is solid brand, not white.
+ *
+ * Body height comes from --app-height, which lib/viewport.ts sets in the
+ * home-screen app, where iOS reports a viewport shorter than the screen.
  */
 html,
 body {
@@ -30,16 +31,14 @@ body {
   overflow: hidden;
   overscroll-behavior: none;
   background-color: var(--color-brand);
-  background-image: linear-gradient(
-    to bottom,
-    var(--color-brand) 50%,
-    var(--color-surface) 50%
-  );
 }
 
 body {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--app-height, 100%);
   color: var(--color-text);
   font-family: var(--font-sans);
 }
