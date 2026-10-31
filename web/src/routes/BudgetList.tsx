@@ -73,7 +73,7 @@ export function BudgetList() {
         }
       />
 
-      <main className="min-h-0 flex-1 overflow-y-auto p-3">
+      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
         {cards.length === 0 && (
           <p className="p-8 text-center text-muted">Nothing here yet. Add a budget to get started.</p>
         )}

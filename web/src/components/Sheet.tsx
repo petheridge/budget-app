@@ -26,7 +26,7 @@ function SheetFrame({
         role="dialog"
         aria-modal="true"
         aria-label={label}
-        className="relative max-h-full w-full max-w-[600px] overflow-y-auto rounded-t-2xl bg-bg pb-[env(safe-area-inset-bottom)]"
+        className="relative max-h-full w-full max-w-[600px] overflow-y-auto overscroll-contain rounded-t-2xl bg-bg pb-[env(safe-area-inset-bottom)]"
       >
         {children}
       </div>

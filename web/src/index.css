@@ -13,18 +13,31 @@
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
+/*
+ * The page itself never scrolls or rubber-bands: the document is pinned to the
+ * viewport and only each screen's <main> list scrolls, between a fixed header
+ * and footer. iOS treats <html> as the root scroller, so overscroll-behavior
+ * must be set there as well as on body.
+ *
+ * The html/body background is the brand colour so the iOS status bar area
+ * (and anything Safari samples to tint it) is solid brand, not white.
+ */
 html,
 body {
   height: 100%;
-}
-
-#root {
-  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background-color: var(--color-brand);
 }
 
 body {
-  background-color: var(--color-bg);
+  position: fixed;
+  inset: 0;
   color: var(--color-text);
   font-family: var(--font-sans);
-  overscroll-behavior: none;
+}
+
+#root {
+  height: 100%;
+  background-color: var(--color-bg);
 }
