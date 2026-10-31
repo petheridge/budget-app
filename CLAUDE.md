@@ -95,10 +95,9 @@ Household app: any authenticated user can read/write all records. No public acce
   - Left, small labels: `Income:` (green value), `Expenses:` (red value)
   - Right: "Balance" label in grey, with a large coloured balance below it
 
-### 3. Add / edit sheet (bottom sheet or modal)
-- **Add Income** / **Add Expense** opens the sheet with `type` already set by the button pressed
-- Fields: Name, Amount (numeric keypad, £), Note (optional)
-- Save / Cancel. Editing uses the same sheet, pre-filled.
+### 3. Adding and editing entries
+- **Add Income** / **Add Expense** adds a blank row inline at the end of the list (no pop-up, so the screen doesn't jump when the keyboard opens), with `type` set by the button pressed. Name is focused; Return moves to Amount (numeric keypad). Leaving the row saves it; a blank name discards it; an empty amount saves as £0.00; ✕ cancels
+- **Edit** (from an entry's ⋮) opens a sheet, pre-filled: Name, Amount (£), Note (optional), Save / Cancel. Notes are added here
 - Also use a simple sheet to add or rename a budget or folder (name only, plus the folder to put it in).
 
 ### ⋮ menus
