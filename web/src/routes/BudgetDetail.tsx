@@ -51,7 +51,7 @@ export function BudgetDetail() {
         }
       />
 
-      <main className="min-h-0 flex-1 overflow-y-auto">
+      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <ReorderList items={rows} getId={(entry) => entry.id} onReorder={reorderEntries}>
           {(entry, handle) => {
             const colour = entry.type === 'income' ? 'text-income' : 'text-expense'
