@@ -8,3 +8,8 @@ web/dev-dist/
 pocketbase/pocketbase
 pocketbase/pb_data/
 pocketbase/pb_public/
+
+# Runtime files, if deploy/ is run in place
+deploy/pb_data/
+deploy/logs/
+deploy/.deploy.lock

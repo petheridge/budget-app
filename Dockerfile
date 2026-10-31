@@ -14,7 +14,8 @@ RUN apk add --no-cache ca-certificates \
   && ZIP="pocketbase_${PB_VERSION}_linux_${TARGETARCH}.zip" \
   && BASE="https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}" \
   && cd /tmp \
-  && wget -q "$BASE/$ZIP" "$BASE/checksums.txt" \
+  && wget -q "$BASE/$ZIP" \
+  && wget -q "$BASE/checksums.txt" \
   && grep " $ZIP\$" checksums.txt | sha256sum -c - \
   && mkdir -p /pb \
   && unzip -q "$ZIP" pocketbase -d /pb \
@@ -22,4 +23,6 @@ RUN apk add --no-cache ca-certificates \
 COPY pocketbase/pb_migrations /pb/pb_migrations
 COPY --from=web /web/dist /pb/pb_public
 EXPOSE 8090
-CMD ["/pb/pocketbase", "serve", "--http=0.0.0.0:8090"]
+# serve applies pb_migrations on startup. Automigrate is off so that admin UI changes can't write
+# migration files into the container: schema changes only come from git. Mount a volume at /pb/pb_data.
+CMD ["/pb/pocketbase", "serve", "--http=0.0.0.0:8090", "--dir=/pb/pb_data", "--publicDir=/pb/pb_public", "--migrationsDir=/pb/pb_migrations", "--automigrate=false"]

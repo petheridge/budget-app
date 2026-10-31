@@ -1,0 +1,11 @@
+name: budget
+
+services:
+  budget:
+    # IMAGE_TAG comes from .env. Set it to a commit SHA to pin a version.
+    image: ghcr.io/petheridge/budget-app:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./pb_data:/pb/pb_data

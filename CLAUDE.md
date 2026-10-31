@@ -155,7 +155,9 @@ These are candidates for later phases. Structure the code so they can be added w
 ```
 /
 ├── CLAUDE.md
-├── docker-compose.yml
+├── docker-compose.yml      # local image build only
+├── .github/workflows/      # test, build and publish to GHCR
+├── deploy/                 # compose file, update and backup scripts, host setup guide
 ├── Dockerfile              # multi-stage: build web → copy into PocketBase image's pb_public
 ├── pocketbase/
 │   ├── pb_migrations/      # schema as JS migrations, committed to git
@@ -186,9 +188,16 @@ These are candidates for later phases. Structure the code so they can be added w
 
 ## Deployment
 
-- Target: Debian LXC on Proxmox, home LAN only (remote access later via VPN, never exposed publicly)
-- `git pull && docker compose up -d --build`
-- Persist `pb_data/` as a volume; back it up to the NAS
+Pull-based: nothing on the LAN accepts inbound connections from outside.
+
+1. Push to `main` runs `.github/workflows/build.yml`: web tests, then a `linux/amd64` image pushed to `ghcr.io/petheridge/budget-app`, tagged `latest` and the full commit SHA. Manual runs on other branches test but don't publish.
+2. On the host, cron runs `deploy/update.sh` every 5 minutes, which pulls and restarts if the image changed. `deploy/backup.sh` runs nightly, briefly stopping the app to copy `pb_data/` consistently to the NAS and keeping 14 copies.
+3. To roll back, set `IMAGE_TAG=<sha>` in the host's `.env`, which also stops automatic updates until it's removed.
+
+- Target: Debian 12 unprivileged LXC on Proxmox (`nesting=1,keyctl=1`), home LAN only (remote access later via VPN, never exposed publicly). Setup steps are in `deploy/README.md`
+- `deploy/` holds what the host runs. The root `docker-compose.yml` builds the image locally, for testing the `Dockerfile` only
+- Migrations apply automatically when the container starts, and automigrate is off in production: schema changes must come from `pb_migrations/` in git
+- Secrets (the GHCR token) live only on the host, never in the repo
 - HTTPS is needed later for full PWA/service-worker support on iOS (Caddy with a DNS challenge, or Tailscale Serve). Not required to start.
 
 ## Conventions

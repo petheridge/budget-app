@@ -5,3 +5,5 @@ web/dev-dist
 pocketbase/pocketbase
 pocketbase/pb_data
 pocketbase/pb_public
+.github
+deploy
