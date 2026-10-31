@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { BudgetMenu } from '../components/BudgetMenu'
 import { EntryMenu } from '../components/EntryMenu'
-import { EntrySheet } from '../components/EntrySheet'
+import { DraftEntryRow } from '../components/DraftEntryRow'
 import { Header, HeaderButton } from '../components/Header'
 import { DotsIcon, MenuIcon, PencilIcon } from '../components/icons'
 import { ReorderList } from '../components/ReorderList'
@@ -19,7 +19,6 @@ import {
 import { entriesIn } from '../lib/selectors'
 
 type Sheet =
-  | { kind: 'add'; type: EntryType }
   | { kind: 'budgetMenu' }
   | { kind: 'entryMenu'; id: string }
 
@@ -29,6 +28,11 @@ export function BudgetDetail() {
   const { budgets, folders, entries, reorderEntries } = useData()
   const [sheet, setSheet] = useState<Sheet | null>(null)
   const close = () => setSheet(null)
+  // The new entry being typed inline. The key lets a row that finishes saving
+  // after another was started close itself without closing the new one.
+  const [draft, setDraft] = useState<{ key: number; type: EntryType } | null>(null)
+  const startDraft = (type: EntryType) => setDraft({ key: Date.now(), type })
+  const endDraft = (key: number) => setDraft((d) => (d?.key === key ? null : d))
 
   const budget = budgets.find((b) => b.id === id)
   if (!budget) return <Navigate to="/" replace />
@@ -84,20 +88,28 @@ export function BudgetDetail() {
             )
           }}
         </ReorderList>
+        {draft && (
+          <DraftEntryRow
+            key={draft.key}
+            budgetId={budget.id}
+            type={draft.type}
+            onDone={() => endDraft(draft.key)}
+          />
+        )}
       </main>
 
       <footer className="shrink-0 bg-surface pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_4px_rgba(0,0,0,0.08)]">
         <div className="grid grid-cols-2 gap-2.5 p-3 pb-2">
           <button
             type="button"
-            onClick={() => setSheet({ kind: 'add', type: 'income' })}
+            onClick={() => startDraft('income')}
             className="rounded-xl bg-income py-3.5 font-bold text-white"
           >
             Add Income
           </button>
           <button
             type="button"
-            onClick={() => setSheet({ kind: 'add', type: 'expense' })}
+            onClick={() => startDraft('expense')}
             className="rounded-xl bg-expense py-3.5 font-bold text-white"
           >
             Add Expense
@@ -123,7 +135,6 @@ export function BudgetDetail() {
         </div>
       </footer>
 
-      {sheet?.kind === 'add' && <EntrySheet budgetId={budget.id} type={sheet.type} onClose={close} />}
       {sheet?.kind === 'budgetMenu' && (
         <BudgetMenu budget={budget} onClose={close} onBeforeDelete={() => navigate(backTo, { replace: true })} />
       )}
