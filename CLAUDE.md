@@ -182,6 +182,7 @@ These are candidates for later phases. Structure the code so they can be added w
 - Menu icons: the root header menu holds Sign out; the budget detail header menu holds the same actions as a budget's ⋮
 - All records are held in memory by `web/src/lib/data.tsx`, kept current by realtime, plus a refetch on reconnect and on returning to the foreground
 - Bind Vite to `0.0.0.0` so the app can be tested on an iPhone over the LAN
+- iOS home-screen app: the screen-edge colours and the blur under the status bar are controlled by WebKit, which looks for a fixed, full-width, opaque element at each edge. `web/src/components/EdgeBars.tsx` provides them; don't remove them or make them translucent. The page itself is pinned (`body` fixed) and only each screen's `<main>` scrolls. Neither can be checked in a desktop browser or headless Chromium, only on the phone
 - Define the schema in **migrations** (`pb_migrations/`), never only by clicking in the admin UI
 - Unit test `money.ts`: formatting, signs, zero handling and totals
 
