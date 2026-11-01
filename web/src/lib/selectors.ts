@@ -83,3 +83,44 @@ export function folderPath(folders: Folder[], folder: Folder): string {
   }
   return names.join(' / ')
 }
+
+/** Whole calendar months from a recorded date to now: 15 Oct to 1 Nov is 1. */
+export function monthsBetween(fromIso: string, to: Date): number {
+  const from = new Date(fromIso.replace(' ', 'T'))
+  return (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth())
+}
+
+/** The saving or debt a budget expense is linked to, if it still exists. */
+export function linkTarget(entry: Entry, entries: Entry[], budgets: Budget[]): Entry | undefined {
+  if (!entry.link) return undefined
+  const target = entries.find((e) => e.id === entry.link)
+  return target && budgets.some((b) => b.id === target.budget) ? target : undefined
+}
+
+/** Budget expenses linked to a saving or debt, from budgets that still exist. */
+export function linkedInto(item: Entry, entries: Entry[], budgets: Budget[]): Entry[] {
+  return entries.filter((e) => e.link === item.id && budgets.some((b) => b.id === e.budget))
+}
+
+/**
+ * What a saving or debt should be worth now, from the monthly amounts linked to
+ * it: one payment for each calendar month since its last recorded value, added
+ * to a saving or taken off a debt (never below £0). A suggestion for Catch Up,
+ * never stored. Null when nothing is linked or no month has passed.
+ */
+export function expectedValue(
+  item: Entry,
+  entries: Entry[],
+  budgets: Budget[],
+  snapshots: Snapshot[],
+  now: Date,
+): { pence: number; monthly: number; months: number } | null {
+  const monthly = sum(linkedInto(item, entries, budgets).map((e) => e.amount_pence))
+  if (monthly === 0) return null
+  const since = historyOf(snapshots, item.id)[0]?.created ?? item.created
+  const months = monthsBetween(since, now)
+  if (months <= 0) return null
+  const change = months * monthly
+  const pence = item.type === 'debt' ? Math.max(0, item.amount_pence - change) : item.amount_pence + change
+  return { pence, monthly, months }
+}

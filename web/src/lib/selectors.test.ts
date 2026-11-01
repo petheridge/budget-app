@@ -4,9 +4,13 @@ import {
   budgetBalance,
   cardsIn,
   changeSincePrevious,
+  expectedValue,
   folderPath,
   historyOf,
   levelBalance,
+  linkedInto,
+  linkTarget,
+  monthsBetween,
   nextSortOrder,
 } from './selectors'
 
@@ -111,5 +115,62 @@ describe('history', () => {
   it('has no change until there are two values', () => {
     expect(changeSincePrevious(isa, snapshots.slice(0, 1))).toBeNull()
     expect(changeSincePrevious(isa, [])).toBeNull()
+  })
+})
+
+describe('links and expected values', () => {
+  const budgets = [budget('household'), budget('worth', '', 1, 'tracker')]
+  const item = (id: string, amount_pence: number, type: 'saving' | 'debt', created = '2026-09-01 00:00:00.000Z') =>
+    ({ ...base, id, budget: 'worth', name: id, amount_pence, type, note: '', sort_order: 0, created }) as Entry
+  const pay = (id: string, amount_pence: number, link: string, budgetId = 'household') =>
+    ({ ...entry(budgetId, amount_pence, 'expense'), id, link }) as Entry
+  const isa = item('isa', 1240000, 'saving')
+  const mortgage = item('mortgage', 18230000, 'debt')
+  const entries = [isa, mortgage, pay('toIsa', 25000, 'isa'), pay('extra', 5000, 'isa'), pay('mort', 115000, 'mortgage'), pay('gone', 999, 'isa', 'deletedBudget')]
+  const snap = (entryId: string, amount_pence: number, created: string) =>
+    ({ ...base, id: `${entryId}${created}`, entry: entryId, amount_pence, created }) as Snapshot
+  const snapshots = [snap('isa', 1240000, '2026-10-01 09:00:00.000Z'), snap('mortgage', 18230000, '2026-10-15 09:00:00.000Z')]
+  const nov = new Date(2026, 10, 1, 12)
+
+  it('counts calendar months', () => {
+    expect(monthsBetween('2026-10-15 09:00:00.000Z', nov)).toBe(1)
+    expect(monthsBetween('2026-08-31 09:00:00.000Z', nov)).toBe(3)
+    expect(monthsBetween('2025-12-01 09:00:00.000Z', nov)).toBe(11)
+    expect(monthsBetween('2026-11-01 09:00:00.000Z', nov)).toBe(0)
+  })
+
+  it('finds links, ignoring ones from deleted budgets or to missing items', () => {
+    expect(linkedInto(isa, entries, budgets).map((e) => e.id)).toEqual(['toIsa', 'extra'])
+    expect(linkTarget(entries[2], entries, budgets)?.id).toBe('isa')
+    expect(linkTarget(pay('x', 1, 'nothing'), entries, budgets)).toBeUndefined()
+    expect(linkTarget(pay('x', 1, ''), entries, budgets)).toBeUndefined()
+  })
+
+  it('adds a month of linked payments to a saving', () => {
+    expect(expectedValue(isa, entries, budgets, snapshots, nov)).toEqual({ pence: 1270000, monthly: 30000, months: 1 })
+  })
+
+  it('takes payments off a debt, one per month since the last value', () => {
+    expect(expectedValue(mortgage, entries, budgets, snapshots, new Date(2027, 0, 5))).toEqual({
+      pence: 18230000 - 3 * 115000,
+      monthly: 115000,
+      months: 3,
+    })
+  })
+
+  it('never takes a debt below zero', () => {
+    const small = item('small', 50000, 'debt')
+    const result = expectedValue(small, [small, pay('p', 30000, 'small')], budgets, [], nov)
+    expect(result?.pence).toBe(0)
+  })
+
+  it('suggests nothing without links or before a month has passed', () => {
+    const unlinked = item('bonds', 500000, 'saving')
+    expect(expectedValue(unlinked, [unlinked], budgets, [], nov)).toBeNull()
+    expect(expectedValue(isa, entries, budgets, [snap('isa', 1240000, '2026-11-01 08:00:00.000Z')], nov)).toBeNull()
+  })
+
+  it('falls back to when the item was added if it has no history', () => {
+    expect(expectedValue(isa, entries, budgets, [], nov)?.months).toBe(2)
   })
 })

@@ -6,7 +6,7 @@ import { Header } from '../components/Header'
 import { useData } from '../lib/data'
 import { evaluateAmount, formatUnsigned, penceToInput, typeColour } from '../lib/money'
 import { isTracker } from '../lib/pb'
-import { entriesIn, historyOf } from '../lib/selectors'
+import { entriesIn, expectedValue, historyOf } from '../lib/selectors'
 
 /**
  * Monthly catch-up for a savings & debts budget: every item on one page with its
@@ -17,10 +17,15 @@ export function CatchUp() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { budgets, entries, snapshots, catchUp } = useData()
+  // Fixed when the page opens, so the suggestions don't shift while typing.
+  const [now] = useState(() => new Date())
   const budget = budgets.find((b) => b.id === id)
   const rows = budget ? entriesIn(entries, budget.id) : []
   const [values, setValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(rows.map((e) => [e.id, penceToInput(e.amount_pence)])),
+    // Linked items start at their expected value; the rest at their current one.
+    Object.fromEntries(
+      rows.map((e) => [e.id, penceToInput(expectedValue(e, entries, budgets, snapshots, now)?.pence ?? e.amount_pence)]),
+    ),
   )
   const [invalid, setInvalid] = useState<Set<string>>(new Set())
   // Which item's keypad is open, by position in the list.
@@ -64,11 +69,13 @@ export function CatchUp() {
       <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <p className="px-4 py-3 text-sm text-muted">
           Update any values that have changed. Tap a value to change it: start with + or − to add to it
-          or take away from it. Saving records today's value for every item.
+          or take away from it. Items with linked payments start at their expected value. Saving records
+          today's value for every item.
         </p>
         <ul>
           {rows.map((entry, index) => {
             const last = historyOf(snapshots, entry.id)[0]
+            const expected = expectedValue(entry, entries, budgets, snapshots, now)
             const colour = typeColour(entry.type)
             return (
               <li key={entry.id} className="border-b border-black/10 bg-surface first:border-t">
@@ -78,6 +85,12 @@ export function CatchUp() {
                     {last && (
                       <span className="block text-xs text-muted">
                         {formatUnsigned(last.amount_pence)} on {formatDay(last.created)}
+                      </span>
+                    )}
+                    {expected && (
+                      <span className="block text-xs text-brand">
+                        Expected: {entry.type === 'debt' ? '−' : '+'} {formatUnsigned(expected.monthly)} a month
+                        {expected.months > 1 ? ` × ${expected.months} months` : ''}
                       </span>
                     )}
                   </span>
