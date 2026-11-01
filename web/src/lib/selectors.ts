@@ -1,5 +1,5 @@
 import { balance, sum, type Amount } from './money'
-import type { Budget, Entry, Folder } from './pb'
+import { isTracker, type Budget, type Entry, type Folder, type Snapshot } from './pb'
 
 export type Card =
   | { kind: 'folder'; key: string; record: Folder }
@@ -37,10 +37,34 @@ export function budgetBalance(entries: Entry[], budgetId: string): number {
 
 /**
  * Sum of the balances of budgets directly in a folder ('' = root).
- * Budgets in folders deliberately don't count towards the level above.
+ * Budgets in folders deliberately don't count towards the level above, and
+ * savings & debts budgets don't count at all: they're net worth, not monthly money.
  */
 export function levelBalance(budgets: Budget[], entries: Entry[], folderId: string): number {
-  return sum(budgets.filter((b) => b.folder === folderId).map((b) => budgetBalance(entries, b.id)))
+  return sum(
+    budgets
+      .filter((b) => b.folder === folderId && !isTracker(b))
+      .map((b) => budgetBalance(entries, b.id)),
+  )
+}
+
+/** An item's recorded values, newest first. */
+export function historyOf(snapshots: Snapshot[], entryId: string): Snapshot[] {
+  return snapshots
+    .filter((s) => s.entry === entryId)
+    .sort((a, b) => b.created.localeCompare(a.created))
+}
+
+/**
+ * How an item's current value differs from the value recorded before its latest
+ * update, and when that was. Null until it has at least two recorded values.
+ */
+export function changeSincePrevious(
+  entry: Entry,
+  snapshots: Snapshot[],
+): { change: number; since: string } | null {
+  const previous = historyOf(snapshots, entry.id)[1]
+  return previous ? { change: entry.amount_pence - previous.amount_pence, since: previous.created } : null
 }
 
 export function nextSortOrder(items: { sort_order: number }[]): number {

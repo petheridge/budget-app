@@ -14,8 +14,11 @@ import {
   formatSigned,
   incomeTotal,
   signedValue,
+  typeColour,
   type EntryType,
 } from '../lib/money'
+import { isTracker } from '../lib/pb'
+import { TrackerDetail } from './TrackerDetail'
 import { entriesIn } from '../lib/selectors'
 
 type Sheet =
@@ -36,6 +39,7 @@ export function BudgetDetail() {
 
   const budget = budgets.find((b) => b.id === id)
   if (!budget) return <Navigate to="/" replace />
+  if (isTracker(budget)) return <TrackerDetail budget={budget} />
 
   const folder = folders.find((f) => f.id === budget.folder)
   const backTo = folder ? `/folder/${folder.id}` : '/'
@@ -58,7 +62,7 @@ export function BudgetDetail() {
       <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <ReorderList items={rows} getId={(entry) => entry.id} onReorder={reorderEntries}>
           {(entry, handle) => {
-            const colour = entry.type === 'income' ? 'text-income' : 'text-expense'
+            const colour = typeColour(entry.type)
             return (
               <div className="flex min-h-[68px] items-stretch border-b border-black/10 bg-surface">
                 {handle}

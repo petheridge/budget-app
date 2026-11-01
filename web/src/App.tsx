@@ -3,6 +3,7 @@ import { EdgeBars } from './components/EdgeBars'
 import { RequireAuth } from './components/RequireAuth'
 import { BudgetDetail } from './routes/BudgetDetail'
 import { BudgetList } from './routes/BudgetList'
+import { CatchUp } from './routes/CatchUp'
 import { Login } from './routes/Login'
 
 export function App() {
@@ -16,6 +17,7 @@ export function App() {
             <Route path="/" element={<BudgetList />} />
             <Route path="/folder/:id" element={<BudgetList />} />
             <Route path="/budget/:id" element={<BudgetDetail />} />
+            <Route path="/budget/:id/catch-up" element={<CatchUp />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

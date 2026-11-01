@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useData } from '../lib/data'
-import type { Budget } from '../lib/pb'
+import { isTracker, type Budget } from '../lib/pb'
 import { ActionSheet, ConfirmSheet, FolderSelect, FormSheet, NameSheet } from './Sheet'
 
 export function BudgetMenu({
@@ -12,7 +12,9 @@ export function BudgetMenu({
   onClose: () => void
   onBeforeDelete?: () => void
 }) {
-  const { renameBudget, deleteBudget } = useData()
+  const { renameBudget, deleteBudget, setBudgetKind, entries } = useData()
+  // A budget's type can only change while it's empty, so no entry has the wrong kind of type.
+  const isEmpty = !entries.some((e) => e.budget === budget.id)
   const [step, setStep] = useState<'menu' | 'rename' | 'move' | 'delete'>('menu')
 
   if (step === 'rename') {
@@ -48,6 +50,17 @@ export function BudgetMenu({
       actions={[
         { label: 'Rename', onClick: () => setStep('rename') },
         { label: 'Move to folder', onClick: () => setStep('move') },
+        ...(isEmpty
+          ? [
+              {
+                label: isTracker(budget) ? 'Change to Budget' : 'Change to Savings & debts',
+                onClick: () => {
+                  void setBudgetKind(budget.id, isTracker(budget) ? 'budget' : 'tracker')
+                  onClose()
+                },
+              },
+            ]
+          : []),
         { label: 'Delete', danger: true, onClick: () => setStep('delete') },
       ]}
     />

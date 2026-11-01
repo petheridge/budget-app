@@ -9,25 +9,34 @@ import {
   type ReactNode,
 } from 'react'
 import type { EntryType } from './money'
-import { pb, type Budget, type Entry, type Folder } from './pb'
+import { pb, type Budget, type BudgetKind, type Entry, type Folder, type Snapshot } from './pb'
 import { bySortOrder, cardsIn, nextSortOrder, type Card } from './selectors'
 
-type Ordered = RecordModel & { sort_order: number; created: string }
+type Stored = RecordModel & { sort_order?: number; created: string }
+
+const byCreated = (a: Stored, b: Stored) => a.created.localeCompare(b.created)
+const byOrder = (a: Stored, b: Stored) => bySortOrder({ sort_order: 0, ...a }, { sort_order: 0, ...b })
 
 /** One collection, kept in memory and in step with the server over realtime. */
-function useRecords<T extends Ordered>(name: 'folders' | 'budgets' | 'entries') {
+function useRecords<T extends Stored>(
+  name: 'folders' | 'budgets' | 'entries' | 'snapshots',
+  ordered = true,
+) {
   const service = useRef(pb.collection(name) as unknown as RecordService<T>).current
   const [records, setRecords] = useState<T[]>([])
+  // Folders, budgets and entries have a user-set order; snapshots are kept by date.
+  const order = ordered ? byOrder : byCreated
 
   const load = useCallback(async () => {
-    setRecords(await service.getFullList({ sort: 'sort_order,created' }))
-  }, [service])
+    setRecords(await service.getFullList({ sort: ordered ? 'sort_order,created' : 'created' }))
+  }, [service, ordered])
 
-  const upsert = useCallback((record: T) => {
-    setRecords((current) =>
-      [...current.filter((r) => r.id !== record.id), record].sort(bySortOrder),
-    )
-  }, [])
+  const upsert = useCallback(
+    (record: T) => {
+      setRecords((current) => [...current.filter((r) => r.id !== record.id), record].sort(order))
+    },
+    [order],
+  )
 
   const drop = useCallback((id: string) => {
     setRecords((current) => current.filter((r) => r.id !== id))
@@ -50,11 +59,11 @@ function useRecords<T extends Ordered>(name: 'folders' | 'budgets' | 'entries') 
       setRecords((current) =>
         current
           .map((r) => (orders.has(r.id) ? { ...r, sort_order: orders.get(r.id)! } : r))
-          .sort(bySortOrder),
+          .sort(order),
       )
       return Promise.all(moved.map((r) => service.update(r.id, { sort_order: orders.get(r.id) })))
     },
-    [records, service],
+    [records, service, order],
   )
 
   return { records, service, load, upsert, drop, applySortOrders }
@@ -67,27 +76,32 @@ export interface EntryFields {
   note: string
 }
 
+/** Saving and debt values are recorded with a date each time they change. */
+const isTrackedType = (type: EntryType) => type === 'saving' || type === 'debt'
+
 function useStore() {
   const folders = useRecords<Folder>('folders')
   const budgets = useRecords<Budget>('budgets')
   const entries = useRecords<Entry>('entries')
+  const snapshots = useRecords<Snapshot>('snapshots', false)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [problem, setProblem] = useState('')
 
   const loadFolders = folders.load
   const loadBudgets = budgets.load
   const loadEntries = entries.load
+  const loadSnapshots = snapshots.load
 
   const refresh = useCallback(async () => {
     try {
-      await Promise.all([loadFolders(), loadBudgets(), loadEntries()])
+      await Promise.all([loadFolders(), loadBudgets(), loadEntries(), loadSnapshots()])
       setStatus('ready')
     } catch (error) {
       if ((error as { status?: number }).status === 401) pb.authStore.clear()
       // A failed background refresh shouldn't take away a screen that's already showing.
       setStatus((current) => (current === 'ready' ? current : 'error'))
     }
-  }, [loadFolders, loadBudgets, loadEntries])
+  }, [loadFolders, loadBudgets, loadEntries, loadSnapshots])
 
   useEffect(() => {
     void refresh()
@@ -110,6 +124,10 @@ function useStore() {
     }
   }, [refresh])
 
+  const record = async (entry: string, amount_pence: number) => {
+    snapshots.upsert(await snapshots.service.create({ entry, amount_pence }))
+  }
+
   /** For changes already shown on screen: if the save fails, say so and restore the real state. */
   const guard = (action: string, write: Promise<unknown>) => {
     write.catch(() => {
@@ -122,6 +140,7 @@ function useStore() {
     folders: folders.records,
     budgets: budgets.records,
     entries: entries.records,
+    snapshots: snapshots.records,
     status,
     problem,
     clearProblem: () => setProblem(''),
@@ -141,11 +160,15 @@ function useStore() {
       guard('delete the folder', folders.service.delete(id))
     },
 
-    async createBudget(name: string, folder: string) {
+    async createBudget(name: string, folder: string, kind: BudgetKind = 'budget') {
       const siblings = cardsIn(folders.records, budgets.records, folder).map((c) => c.record)
       budgets.upsert(
-        await budgets.service.create({ name, folder, sort_order: nextSortOrder(siblings) }),
+        await budgets.service.create({ name, folder, kind, sort_order: nextSortOrder(siblings) }),
       )
+    },
+    /** Only offered for empty budgets, so no entry ends up with the wrong kind of type. */
+    async setBudgetKind(id: string, kind: BudgetKind) {
+      budgets.upsert(await budgets.service.update(id, { kind }))
     },
     async renameBudget(id: string, name: string) {
       budgets.upsert(await budgets.service.update(id, { name }))
@@ -163,16 +186,42 @@ function useStore() {
 
     async createEntry(budget: string, fields: EntryFields) {
       const siblings = entries.records.filter((e) => e.budget === budget)
-      entries.upsert(
-        await entries.service.create({ ...fields, budget, sort_order: nextSortOrder(siblings) }),
-      )
+      const entry = await entries.service.create({
+        ...fields,
+        budget,
+        sort_order: nextSortOrder(siblings),
+      })
+      entries.upsert(entry)
+      if (isTrackedType(entry.type)) await record(entry.id, entry.amount_pence)
     },
     async updateEntry(id: string, fields: EntryFields) {
-      entries.upsert(await entries.service.update(id, { ...fields }))
+      const before = entries.records.find((e) => e.id === id)
+      const entry = await entries.service.update(id, { ...fields })
+      entries.upsert(entry)
+      if (isTrackedType(entry.type) && entry.amount_pence !== before?.amount_pence) {
+        await record(entry.id, entry.amount_pence)
+      }
     },
     deleteEntry(id: string) {
       entries.drop(id)
+      // The server deletes its snapshots too.
+      for (const s of snapshots.records) if (s.entry === id) snapshots.drop(s.id)
       guard('delete the entry', entries.service.delete(id))
+    },
+    /**
+     * Monthly catch-up: records today's value for every item in a savings &
+     * debts budget, changed or not, so each catch-up is complete in the history.
+     */
+    async catchUp(values: Map<string, number>) {
+      await Promise.all(
+        [...values].map(async ([id, amount_pence]) => {
+          const before = entries.records.find((e) => e.id === id)
+          if (before && before.amount_pence !== amount_pence) {
+            entries.upsert(await entries.service.update(id, { amount_pence }))
+          }
+          await record(id, amount_pence)
+        }),
+      )
     },
 
     reorderCards(cards: Card[]) {

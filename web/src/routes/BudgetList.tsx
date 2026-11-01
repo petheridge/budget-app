@@ -14,7 +14,7 @@ import { ReorderList } from '../components/ReorderList'
 import { ActionSheet, NameSheet } from '../components/Sheet'
 import { useData } from '../lib/data'
 import { balanceColour, formatSigned } from '../lib/money'
-import { pb } from '../lib/pb'
+import { isTracker, pb } from '../lib/pb'
 import { budgetBalance, cardsIn, levelBalance, type Card } from '../lib/selectors'
 
 type Sheet =
@@ -115,6 +115,7 @@ export function BudgetList() {
       {sheet?.kind === 'addBudget' && (
         <NameSheet
           title="Add Budget"
+          chooseKind
           folderLabel="Folder"
           initialFolder={folderId}
           onSave={createBudget}
@@ -165,7 +166,10 @@ function CardRow({
         {isFolder && <FolderIcon />}
         <span className="min-w-0 flex-1 truncate text-text">{card.record.name}</span>
         {!isFolder && (
-          <span className={`font-bold whitespace-nowrap ${balanceColour(balance)}`}>
+          // A savings & debts card shows net worth in brand colour, apart from money in and out.
+          <span
+            className={`font-bold whitespace-nowrap ${isTracker(card.record) ? 'text-brand' : balanceColour(balance)}`}
+          >
             {formatSigned(balance)}
           </span>
         )}
