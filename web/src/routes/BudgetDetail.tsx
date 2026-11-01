@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { BudgetMenu } from '../components/BudgetMenu'
 import { EntryMenu } from '../components/EntryMenu'
+import { InlineAmount } from '../components/InlineAmount'
 import { DraftEntryRow } from '../components/DraftEntryRow'
 import { Header, HeaderButton } from '../components/Header'
 import { DotsIcon, MenuIcon, PencilIcon } from '../components/icons'
@@ -36,6 +37,9 @@ export function BudgetDetail() {
   const [draft, setDraft] = useState<{ key: number; type: EntryType } | null>(null)
   const startDraft = (type: EntryType) => setDraft({ key: Date.now(), type })
   const endDraft = (key: number) => setDraft((d) => (d?.key === key ? null : d))
+  // The entry whose amount is open on the keypad, if any.
+  const [editingAmount, setEditingAmount] = useState<string | null>(null)
+  const closeAmount = useCallback(() => setEditingAmount(null), [])
 
   const budget = budgets.find((b) => b.id === id)
   if (!budget) return <Navigate to="/" replace />
@@ -76,9 +80,15 @@ export function BudgetDetail() {
                       </p>
                     )}
                   </div>
-                  <span className={`font-semibold whitespace-nowrap ${colour}`}>
+                  <InlineAmount
+                    entry={entry}
+                    open={editingAmount === entry.id}
+                    onOpen={() => setEditingAmount(entry.id)}
+                    onClose={closeAmount}
+                    className={`font-semibold whitespace-nowrap ${colour}`}
+                  >
                     {formatSigned(signedValue(entry))}
-                  </span>
+                  </InlineAmount>
                 </div>
                 <button
                   type="button"

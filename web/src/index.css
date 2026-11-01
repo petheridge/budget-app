@@ -44,3 +44,12 @@ body {
   height: 100%;
   background-color: var(--color-bg);
 }
+
+/*
+ * While the app's amount keypad is open (components/AmountPad.tsx), leave room to
+ * scroll the box being edited above it, in a screen's list or in a sheet.
+ */
+body.amount-pad-open main,
+body.amount-pad-open [role='dialog'] {
+  padding-bottom: var(--amount-pad-height, 0px);
+}

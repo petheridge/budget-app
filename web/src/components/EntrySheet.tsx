@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useData } from '../lib/data'
 import { entryTypeLabels } from '../lib/entryTypes'
-import { parsePence, penceToInput, type EntryType } from '../lib/money'
+import { evaluateAmount, penceToInput, type EntryType } from '../lib/money'
+import { AmountField } from './AmountPad'
 import type { Entry } from '../lib/pb'
 import { FormSheet, inputClass } from './Sheet'
 
@@ -20,19 +21,22 @@ export function EntrySheet({
   const [name, setName] = useState(entry?.name ?? '')
   const [amount, setAmount] = useState(entry ? penceToInput(entry.amount_pence) : '')
   const [note, setNote] = useState(entry?.note ?? '')
+  const [padOpen, setPadOpen] = useState(false)
   const [error, setError] = useState('')
 
   async function save() {
     const trimmed = name.trim()
-    const amount_pence = parsePence(amount)
+    const result = evaluateAmount(amount)
     if (!trimmed) {
       setError('Please enter a name.')
       return
     }
-    if (amount_pence === null) {
-      setError('Please enter an amount, like 12.50.')
+    if (!result?.ok) {
+      setError(result ? result.error : 'Please enter an amount, like 12.50.')
       return
     }
+    const amount_pence = result.pence
+    setPadOpen(false)
     setError('')
     const fields = { name: trimmed, amount_pence, type, note: note.trim() }
     if (entry) await updateEntry(entry.id, fields)
@@ -55,27 +59,37 @@ export function EntrySheet({
           className={inputClass}
           autoFocus
           value={name}
+          onFocus={() => setPadOpen(false)}
           onChange={(e) => setName(e.target.value)}
         />
       </label>
-      <label className="text-sm text-muted">
+      <div className="text-sm text-muted">
         {amountLabel}
-        <span className="relative block">
-          <span className="absolute top-1/2 left-3 mt-0.5 -translate-y-1/2 text-base text-text">
-            £
-          </span>
-          <input
-            className={`${inputClass} pl-7`}
-            inputMode="decimal"
+        <div className="mt-1 flex items-center rounded-xl border border-black/10 bg-surface pl-3">
+          <span className="text-base text-text">£</span>
+          <AmountField
+            label={amountLabel}
             placeholder="0.00"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={setAmount}
+            open={padOpen}
+            onOpen={() => {
+              ;(document.activeElement as HTMLElement | null)?.blur()
+              setPadOpen(true)
+            }}
+            onDone={() => setPadOpen(false)}
+            className="flex-1 rounded-xl px-3 py-3 text-left text-base text-text"
           />
-        </span>
-      </label>
+        </div>
+      </div>
       <label className="text-sm text-muted">
         Note (optional)
-        <input className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} />
+        <input
+          className={inputClass}
+          value={note}
+          onFocus={() => setPadOpen(false)}
+          onChange={(e) => setNote(e.target.value)}
+        />
       </label>
     </FormSheet>
   )

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { BudgetMenu } from '../components/BudgetMenu'
 import { ChangeText, formatDay } from '../components/Change'
@@ -6,6 +6,7 @@ import { DraftEntryRow } from '../components/DraftEntryRow'
 import { EntryMenu } from '../components/EntryMenu'
 import { Header, HeaderButton } from '../components/Header'
 import { HistorySheet } from '../components/HistorySheet'
+import { InlineAmount } from '../components/InlineAmount'
 import { DotsIcon, MenuIcon, PencilIcon } from '../components/icons'
 import { ReorderList } from '../components/ReorderList'
 import { useData } from '../lib/data'
@@ -37,6 +38,9 @@ export function TrackerDetail({ budget }: { budget: Budget }) {
   const [draft, setDraft] = useState<{ key: number; type: EntryType } | null>(null)
   const startDraft = (type: EntryType) => setDraft({ key: Date.now(), type })
   const endDraft = (key: number) => setDraft((d) => (d?.key === key ? null : d))
+  // The item whose value is open on the keypad, if any.
+  const [editingAmount, setEditingAmount] = useState<string | null>(null)
+  const closeAmount = useCallback(() => setEditingAmount(null), [])
 
   const folder = folders.find((f) => f.id === budget.folder)
   const backTo = folder ? `/folder/${folder.id}` : '/'
@@ -64,13 +68,13 @@ export function TrackerDetail({ budget }: { budget: Budget }) {
             return (
               <div className="flex min-h-[68px] items-stretch border-b border-black/10 bg-surface">
                 {handle}
-                <button
-                  type="button"
-                  aria-label={`${entry.name} history`}
-                  onClick={() => setSheet({ kind: 'history', id: entry.id })}
-                  className="flex min-w-0 flex-1 items-center gap-2 py-2 pr-2 text-left"
-                >
-                  <span className="min-w-0 flex-1">
+                <div className="flex min-w-0 flex-1 items-center gap-2 py-2 pr-2">
+                  <button
+                    type="button"
+                    aria-label={`${entry.name} history`}
+                    onClick={() => setSheet({ kind: 'history', id: entry.id })}
+                    className="min-w-0 flex-1 self-stretch text-left"
+                  >
                     <span className={`block font-semibold break-words ${colour}`}>{entry.name}</span>
                     {entry.note && (
                       <span className="mt-0.5 flex items-start gap-1 text-xs break-words text-muted">
@@ -78,11 +82,15 @@ export function TrackerDetail({ budget }: { budget: Budget }) {
                         <span className="min-w-0">{entry.note}</span>
                       </span>
                     )}
-                  </span>
-                  <span className="text-right">
-                    <span className={`block font-semibold whitespace-nowrap ${colour}`}>
-                      {formatUnsigned(entry.amount_pence)}
-                    </span>
+                  </button>
+                  <InlineAmount
+                    entry={entry}
+                    open={editingAmount === entry.id}
+                    onOpen={() => setEditingAmount(entry.id)}
+                    onClose={closeAmount}
+                    className="font-semibold"
+                  >
+                    <span className={`block whitespace-nowrap ${colour}`}>{formatUnsigned(entry.amount_pence)}</span>
                     {moved && (
                       <span className="block whitespace-nowrap">
                         <ChangeText
@@ -92,8 +100,8 @@ export function TrackerDetail({ budget }: { budget: Budget }) {
                         />
                       </span>
                     )}
-                  </span>
-                </button>
+                  </InlineAmount>
+                </div>
                 <button
                   type="button"
                   aria-label={`Options for ${entry.name}`}

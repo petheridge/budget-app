@@ -1,9 +1,10 @@
-import { useState, type FormEvent, type KeyboardEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { AmountField } from '../components/AmountPad'
 import { formatDay } from '../components/Change'
 import { Header } from '../components/Header'
 import { useData } from '../lib/data'
-import { formatUnsigned, parsePence, penceToInput, typeColour } from '../lib/money'
+import { evaluateAmount, formatUnsigned, penceToInput, typeColour } from '../lib/money'
 import { isTracker } from '../lib/pb'
 import { entriesIn, historyOf } from '../lib/selectors'
 
@@ -22,6 +23,8 @@ export function CatchUp() {
     Object.fromEntries(rows.map((e) => [e.id, penceToInput(e.amount_pence)])),
   )
   const [invalid, setInvalid] = useState<Set<string>>(new Set())
+  // Which item's keypad is open, by position in the list.
+  const [openIndex, setOpenIndex] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
 
@@ -34,14 +37,15 @@ export function CatchUp() {
     const parsed = new Map<string, number>()
     const bad = new Set<string>()
     for (const entry of rows) {
-      const text = (values[entry.id] ?? '').trim()
+      const result = evaluateAmount(values[entry.id] ?? '')
       // Blank keeps the current value.
-      const pence = text === '' ? entry.amount_pence : parsePence(text)
-      if (pence === null) bad.add(entry.id)
-      else parsed.set(entry.id, pence)
+      if (result === null) parsed.set(entry.id, entry.amount_pence)
+      else if (result.ok) parsed.set(entry.id, result.pence)
+      else bad.add(entry.id)
     }
     setInvalid(bad)
     if (bad.size > 0) return
+    setOpenIndex(null)
     setBusy(true)
     setFailed(false)
     try {
@@ -53,22 +57,14 @@ export function CatchUp() {
     }
   }
 
-  // Return moves to the next value, and from the last one saves.
-  function onKeyDown(event: KeyboardEvent<HTMLInputElement>, index: number) {
-    if (event.key !== 'Enter') return
-    event.preventDefault()
-    const next = document.getElementById(`catch-up-${index + 1}`)
-    if (next) next.focus()
-    else event.currentTarget.form?.requestSubmit()
-  }
-
   return (
     <form onSubmit={save} noValidate className="flex h-full flex-col">
       <Header title="Catch Up" back={{ to: backTo, label: budget.name, isFolder: false }} />
 
       <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <p className="px-4 py-3 text-sm text-muted">
-          Update any values that have changed. Saving records today's value for every item.
+          Update any values that have changed. Tap a value to change it: start with + or − to add to it
+          or take away from it. Saving records today's value for every item.
         </p>
         <ul>
           {rows.map((entry, index) => {
@@ -76,7 +72,7 @@ export function CatchUp() {
             const colour = typeColour(entry.type)
             return (
               <li key={entry.id} className="border-b border-black/10 bg-surface first:border-t">
-                <label className="flex min-h-[68px] items-center gap-3 px-4 py-2">
+                <div className="flex min-h-[68px] items-center gap-3 px-4 py-2">
                   <span className="min-w-0 flex-1">
                     <span className={`block font-semibold break-words ${colour}`}>{entry.name}</span>
                     {last && (
@@ -87,20 +83,27 @@ export function CatchUp() {
                   </span>
                   <span className={`flex items-center gap-1 font-semibold ${colour}`}>
                     £
-                    <input
-                      id={`catch-up-${index}`}
-                      inputMode="decimal"
-                      enterKeyHint={index === rows.length - 1 ? 'done' : 'next'}
+                    <AmountField
+                      label={`${entry.name} value`}
+                      placeholder="0.00"
                       value={values[entry.id] ?? ''}
-                      onChange={(e) => setValues((v) => ({ ...v, [entry.id]: e.target.value }))}
-                      onFocus={(e) => e.currentTarget.select()}
-                      onKeyDown={(e) => onKeyDown(e, index)}
-                      aria-invalid={invalid.has(entry.id)}
-                      // 16px text stops iOS zooming in on focus.
-                      className={`w-32 rounded-lg border bg-bg px-2 py-2 text-right text-base outline-none focus:border-brand ${invalid.has(entry.id) ? 'border-expense' : 'border-transparent'}`}
+                      onChange={(text) => {
+                        setValues((v) => ({ ...v, [entry.id]: text }))
+                        setInvalid((bad) => {
+                          const next = new Set(bad)
+                          next.delete(entry.id)
+                          return next
+                        })
+                      }}
+                      open={openIndex === index}
+                      onOpen={() => setOpenIndex(index)}
+                      // Done moves to the next item; on the last it closes the keypad.
+                      onDone={() => setOpenIndex(index + 1 < rows.length ? index + 1 : null)}
+                      doneLabel={index + 1 < rows.length ? 'Next' : 'Done'}
+                      className={`w-36 rounded-lg border bg-bg px-2 py-2 text-right text-base ${invalid.has(entry.id) ? 'border-expense' : 'border-transparent'}`}
                     />
                   </span>
-                </label>
+                </div>
               </li>
             )
           })}
