@@ -108,11 +108,12 @@ Household app: any authenticated user can read/write all records. No public acce
 
 ### 3. Adding and editing entries
 - **Add Income** / **Add Expense** adds a blank row inline at the end of the list (no pop-up, so the screen doesn't jump when the keyboard opens), with `type` set by the button pressed. Name is focused; Return opens the amount keypad, whose Save saves the row. Tapping outside the row and keypad also saves it; a blank name discards it; an empty amount saves as £0.00; ✕ cancels
+- **Tap an amount in the list** to change it in place: the keypad opens on the current value (a digit replaces it, + or − works from it). Done saves; so does tapping elsewhere, unless the sum doesn't work out, which leaves it unchanged
 - **Edit** (from an entry's ⋮) opens a sheet, pre-filled: Name, Amount (£), Note (optional), Save / Cancel. Notes are added here
 - Also use a simple sheet to add or rename a budget or folder (name only, plus the folder to put it in).
 
 ### Amount keypad
-- Every amount (inline add, Edit sheet, Catch Up) opens the app's own keypad, not the iPhone keyboard, so amounts can be sums: digits, `.`, ⌫, + − × ÷ and a full-width Done (Save on an inline row, Next on Catch Up until the last item)
+- Every amount (inline add, tapping an amount in a list, Edit sheet, Catch Up) opens the app's own keypad, not the iPhone keyboard, so amounts can be sums: digits, `.`, ⌫, + − × ÷ and a full-width Done (Save on an inline row, Next on Catch Up until the last item)
 - A line above the keys shows the sum and its result ("576 ÷ 12   = £ 48.00"), or what's wrong ("Can't be less than £ 0.00"), and Done then stays open
 - With a value already there, a digit replaces it and an operator carries on from it: "+ 250" adds to the current value
 - × and ÷ come before + and −. In each part of a sum the first number is money (up to 2 decimal places) and multipliers and divisors are plain numbers. Each part is rounded to the penny, all in integer pence (`evaluateAmount` in `money.ts`, unit tested). Only the result is stored, not the sum
@@ -121,7 +122,7 @@ Household app: any authenticated user can read/write all records. No public acce
 
 ### 4. Savings & debts budget
 - Chosen when adding a budget ("Budget" or "Savings & debts"), or from the ⋮ menu while a budget is empty
-- Same header and row layout as a budget. Each row: name and current value in the type colour (savings green, debts red-orange), and under the value a small "▲ £ 250.00 since 1 Oct" (or "No change since…"). Tapping a row opens its **history**: every recorded value with its date and change, newest first
+- Same header and row layout as a budget. Each row: name and current value in the type colour (savings green, debts red-orange), and under the value a small "▲ £ 250.00 since 1 Oct" (or "No change since…"). Tapping the value opens the keypad to change it in place (recorded in history); tapping the name opens its **history**: every recorded value with its date and change, newest first
 - Bottom: **Add Saving** (green), **Add Debt** (red-orange), **Catch Up** (brand). Adding works inline, as for entries. Footer: Savings, Debts and a large **Net worth**
 - **Catch Up** opens a full page (not a sheet) listing every item with its current value filled in. Tap a value to change it with the keypad (start with + or − to add or take away; Next moves down the list); Save records today's value for every item. A blank value keeps the current one
 - Debts are entered as positive amounts owed

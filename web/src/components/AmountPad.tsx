@@ -21,6 +21,7 @@ export function AmountField({
   doneLabel = 'Done',
   placeholder,
   label,
+  display,
   className = '',
 }: {
   value: string
@@ -31,6 +32,8 @@ export function AmountField({
   doneLabel?: string
   placeholder: string
   label: string
+  /** What the box shows while its keypad is closed, in place of the raw text. */
+  display?: ReactNode
   className?: string
 }) {
   const fieldRef = useRef<HTMLButtonElement>(null)
@@ -73,7 +76,13 @@ export function AmountField({
         onClick={onOpen}
         className={`truncate tabular-nums ${open ? 'ring-2 ring-brand ring-inset' : ''} ${className}`}
       >
-        {value ? spaceOperators(value) : <span className="font-normal text-muted">{placeholder}</span>}
+        {!open && display !== undefined ? (
+          display
+        ) : value ? (
+          spaceOperators(value)
+        ) : (
+          <span className="font-normal text-muted">{placeholder}</span>
+        )}
       </button>
       {open && (
         <AmountPad text={value} error={error} onKey={press} onDone={done} doneLabel={doneLabel} anchor={fieldRef} />
