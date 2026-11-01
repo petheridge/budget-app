@@ -38,6 +38,8 @@ export async function addRow(page: Page, button: string, name: string, ...amount
   await pressKeys(page, ...amountKeys)
   await keypad(page).getByRole('button', { name: 'Save' }).tap()
   await expect(keypad(page)).toBeHidden()
+  // The row appears once the server has saved it, a moment after the keypad closes.
+  await expect(page.locator('main li').filter({ hasText: name })).toBeVisible()
 }
 
 /** The first line of each row or card in the screen's list, top to bottom. */
