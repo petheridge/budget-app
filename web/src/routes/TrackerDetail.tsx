@@ -5,8 +5,8 @@ import { ChangeText, formatDay } from '../components/Change'
 import { DraftEntryRow } from '../components/DraftEntryRow'
 import { EntryMenu } from '../components/EntryMenu'
 import { Header, HeaderButton } from '../components/Header'
-import { HistorySheet } from '../components/HistorySheet'
 import { InlineAmount } from '../components/InlineAmount'
+import { InlineName } from '../components/InlineName'
 import { DotsIcon, MenuIcon, PencilIcon } from '../components/icons'
 import { ReorderList } from '../components/ReorderList'
 import { useData } from '../lib/data'
@@ -23,7 +23,7 @@ import {
 import type { Budget, Entry } from '../lib/pb'
 import { changeSincePrevious, entriesIn, linkedInto } from '../lib/selectors'
 
-type Sheet = { kind: 'budgetMenu' } | { kind: 'entryMenu'; id: string } | { kind: 'history'; id: string }
+type Sheet = { kind: 'budgetMenu' } | { kind: 'entryMenu'; id: string }
 
 /**
  * A savings & debts budget: each item has a current value, recorded with a date
@@ -66,15 +66,10 @@ export function TrackerDetail({ budget }: { budget: Budget }) {
             const colour = typeColour(entry.type)
             const moved = changeSincePrevious(entry, snapshots)
             return (
-              <div className="flex min-h-[54px] items-stretch border-b border-black/10 bg-surface">
+              <div className="flex min-h-[54px] items-stretch border-b border-line bg-surface">
                 <div className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-2 pl-4">
-                  <button
-                    type="button"
-                    aria-label={`${entry.name} history`}
-                    onClick={() => setSheet({ kind: 'history', id: entry.id })}
-                    className="min-w-0 flex-1 self-stretch text-left"
-                  >
-                    <span className={`block font-semibold break-words ${colour}`}>{entry.name}</span>
+                  <div className="min-w-0 flex-1">
+                    <InlineName entry={entry} className={`font-semibold ${colour}`} />
                     {entry.note && (
                       <span className="mt-0.5 flex items-start gap-1 text-xs break-words text-muted">
                         <PencilIcon />
@@ -82,7 +77,7 @@ export function TrackerDetail({ budget }: { budget: Budget }) {
                       </span>
                     )}
                     <LinkedFrom links={linkedInto(entry, entries, budgets)} budgets={budgets} />
-                  </button>
+                  </div>
                   <InlineAmount
                     entry={entry}
                     open={editingAmount === entry.id}
@@ -106,7 +101,7 @@ export function TrackerDetail({ budget }: { budget: Budget }) {
                   type="button"
                   aria-label={`Options for ${entry.name}`}
                   onClick={() => setSheet({ kind: 'entryMenu', id: entry.id })}
-                  className="my-3 flex w-10 shrink-0 items-center justify-center border-l border-black/10 text-brand"
+                  className="my-3 flex w-10 shrink-0 items-center justify-center border-l border-line text-brand"
                 >
                   <DotsIcon />
                 </button>
@@ -135,26 +130,26 @@ export function TrackerDetail({ budget }: { budget: Budget }) {
           <button
             type="button"
             onClick={() => startDraft('saving')}
-            className="rounded-xl bg-income py-3.5 font-bold text-white"
+            className="rounded-xl button-fill [--fill:var(--color-income)] py-3.5 font-bold"
           >
             Add Saving
           </button>
           <button
             type="button"
             onClick={() => startDraft('debt')}
-            className="rounded-xl bg-expense py-3.5 font-bold text-white"
+            className="rounded-xl button-fill [--fill:var(--color-expense)] py-3.5 font-bold"
           >
             Add Debt
           </button>
           {rows.length > 0 ? (
             <Link
               to={`/budget/${budget.id}/catch-up`}
-              className="rounded-xl bg-brand py-3.5 text-center font-bold text-white"
+              className="rounded-xl button-fill [--fill:var(--color-brand)] py-3.5 text-center font-bold"
             >
               Catch Up
             </Link>
           ) : (
-            <span className="rounded-xl bg-brand/40 py-3.5 text-center font-bold text-white">Catch Up</span>
+            <span className="rounded-xl button-fill [--fill:var(--color-brand)] py-3.5 text-center font-bold opacity-40">Catch Up</span>
           )}
         </div>
         <div className="flex items-stretch gap-3 px-4 pb-3">
@@ -168,7 +163,7 @@ export function TrackerDetail({ budget }: { budget: Budget }) {
               {formatSigned(-typeTotal(rows, 'debt'))}
             </dd>
           </dl>
-          <div className="border-l border-black/10 pl-3 text-right">
+          <div className="border-l border-line pl-3 text-right">
             <p className="text-sm text-muted">Net worth</p>
             <p className={`text-2xl font-bold whitespace-nowrap ${balanceColour(netWorth)}`}>
               {formatSigned(netWorth)}
@@ -181,7 +176,6 @@ export function TrackerDetail({ budget }: { budget: Budget }) {
         <BudgetMenu budget={budget} onClose={close} onBeforeDelete={() => navigate(backTo, { replace: true })} />
       )}
       {sheet?.kind === 'entryMenu' && openEntry && <EntryMenu entry={openEntry} onClose={close} />}
-      {sheet?.kind === 'history' && openEntry && <HistorySheet entry={openEntry} onClose={close} />}
     </div>
   )
 }

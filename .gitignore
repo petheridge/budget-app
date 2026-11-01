@@ -13,3 +13,7 @@ pocketbase/pb_public/
 deploy/pb_data/
 deploy/logs/
 deploy/.deploy.lock
+
+# Playwright end-to-end test output
+web/test-results/
+web/playwright-report/

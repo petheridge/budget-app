@@ -51,7 +51,7 @@ export function LinkSheet({ entry, onClose }: { entry: Entry; onClose: () => voi
                   {items.map((item) => {
                     const selected = item.id === current?.id
                     return (
-                      <li key={item.id} className="border-b border-black/10 last:border-b-0">
+                      <li key={item.id} className="border-b border-line last:border-b-0">
                         <button
                           type="button"
                           aria-pressed={selected}

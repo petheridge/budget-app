@@ -69,15 +69,23 @@ export function ReorderList<T>({
 
 /**
  * Letting go after a drag would otherwise count as a tap on whatever is under
- * the finger, opening a budget or an amount's keypad.
+ * the finger, opening a budget or an amount's keypad. Only the click that comes
+ * straight out of the drop is swallowed: a new touch or click clears it, since a
+ * touch drag often produces no click at all.
  */
 function swallowNextClick() {
   const swallow = (event: MouseEvent) => {
     event.preventDefault()
     event.stopPropagation()
+    stop()
   }
-  window.addEventListener('click', swallow, { capture: true, once: true })
-  window.setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 400)
+  const stop = () => {
+    window.removeEventListener('click', swallow, { capture: true })
+    window.removeEventListener('pointerdown', stop, { capture: true })
+  }
+  window.addEventListener('click', swallow, { capture: true })
+  window.addEventListener('pointerdown', stop, { capture: true })
+  window.setTimeout(stop, 400)
 }
 
 function Row({ id, children }: { id: string; children: ReactNode }) {

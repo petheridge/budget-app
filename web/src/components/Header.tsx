@@ -18,7 +18,7 @@ export function Header({
   actions?: ReactNode
 }) {
   return (
-    <header className="shrink-0 bg-brand pt-[env(safe-area-inset-top)] text-white">
+    <header className="shrink-0 bg-bar pt-[env(safe-area-inset-top)] text-white">
       <div className="grid h-14 grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)] items-center gap-1 px-2">
         <div className="min-w-0">
           {back && (

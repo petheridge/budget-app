@@ -215,7 +215,7 @@ function AmountPad({
             type="button"
             onPointerDown={(e) => e.preventDefault()}
             onClick={onDone}
-            className="col-span-4 h-12 touch-manipulation rounded-lg bg-brand text-lg font-bold text-white active:brightness-90"
+            className="col-span-4 h-12 touch-manipulation rounded-lg button-fill [--fill:var(--color-brand)] text-lg font-bold active:brightness-90"
           >
             {doneLabel}
           </button>

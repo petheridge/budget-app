@@ -25,7 +25,7 @@ export function Login() {
     }
   }
 
-  const field = 'mt-1 w-full rounded-xl border border-black/10 bg-surface px-3 py-3 text-base'
+  const field = 'mt-1 w-full rounded-xl border border-line bg-surface px-3 py-3 text-base'
 
   return (
     <div className="flex h-full flex-col">
@@ -57,7 +57,7 @@ export function Login() {
         <button
           type="submit"
           disabled={busy}
-          className="rounded-xl bg-action py-3 font-bold text-white disabled:opacity-60"
+          className="rounded-xl button-fill [--fill:var(--color-action)] py-3 font-bold disabled:opacity-60"
         >
           Sign in
         </button>

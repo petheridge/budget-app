@@ -26,7 +26,7 @@ export function EdgeBars() {
   const bar = 'pointer-events-none fixed inset-x-0 z-30 hidden standalone:block'
   return (
     <>
-      <div aria-hidden className={`${bar} top-0 h-[max(env(safe-area-inset-top),12px)] bg-brand`} />
+      <div aria-hidden className={`${bar} top-0 h-[max(env(safe-area-inset-top),12px)] bg-bar`} />
       <div aria-hidden className={`${bar} bottom-0 h-[max(env(safe-area-inset-bottom),12px)] ${bottom}`} />
     </>
   )
