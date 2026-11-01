@@ -8,9 +8,13 @@ export interface Folder extends RecordModel {
   created: string
 }
 
+/** '' (older records) and 'budget' both mean an income/expense budget. */
+export type BudgetKind = '' | 'budget' | 'tracker'
+
 export interface Budget extends RecordModel {
   name: string
   folder: string
+  kind: BudgetKind
   sort_order: number
   created: string
 }
@@ -25,10 +29,22 @@ export interface Entry extends RecordModel {
   created: string
 }
 
+/** A saving's or debt's value as recorded on a date (its created time). */
+export interface Snapshot extends RecordModel {
+  entry: string
+  amount_pence: number
+  created: string
+}
+
+export function isTracker(budget: Budget): boolean {
+  return budget.kind === 'tracker'
+}
+
 interface TypedPocketBase extends PocketBase {
   collection(name: 'folders'): RecordService<Folder>
   collection(name: 'budgets'): RecordService<Budget>
   collection(name: 'entries'): RecordService<Entry>
+  collection(name: 'snapshots'): RecordService<Snapshot>
   collection(name: string): RecordService
 }
 

@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useData } from '../lib/data'
+import type { BudgetKind } from '../lib/pb'
 import { folderPath } from '../lib/selectors'
 
-function SheetFrame({
+export function SheetFrame({
   label,
   onClose,
   children,
@@ -219,12 +220,13 @@ export function FolderSelect({
   )
 }
 
-/** Name, plus optionally which folder to put it in. Used to add or rename budgets and folders. */
+/** Name, plus optionally which folder to put it in and, for a new budget, its kind. */
 export function NameSheet({
   title,
   initialName = '',
   folderLabel,
   initialFolder = '',
+  chooseKind = false,
   onSave,
   onClose,
 }: {
@@ -232,11 +234,13 @@ export function NameSheet({
   initialName?: string
   folderLabel?: string
   initialFolder?: string
-  onSave: (name: string, folder: string) => Promise<void>
+  chooseKind?: boolean
+  onSave: (name: string, folder: string, kind: BudgetKind) => Promise<void>
   onClose: () => void
 }) {
   const [name, setName] = useState(initialName)
   const [folder, setFolder] = useState(initialFolder)
+  const [kind, setKind] = useState<BudgetKind>('budget')
   const [error, setError] = useState('')
 
   async function save() {
@@ -246,12 +250,13 @@ export function NameSheet({
       return
     }
     setError('')
-    await onSave(trimmed, folder)
+    await onSave(trimmed, folder, kind)
     onClose()
   }
 
   return (
     <FormSheet title={title} onSave={save} onClose={onClose} error={error}>
+      {chooseKind && <KindChoice value={kind} onChange={setKind} />}
       <label className="text-sm text-muted">
         Name
         <input
@@ -263,5 +268,36 @@ export function NameSheet({
       </label>
       {folderLabel && <FolderSelect label={folderLabel} value={folder} onChange={setFolder} />}
     </FormSheet>
+  )
+}
+
+const kinds: { value: BudgetKind; label: string; hint: string }[] = [
+  { value: 'budget', label: 'Budget', hint: 'Income and outgoings' },
+  { value: 'tracker', label: 'Savings & debts', hint: 'Values tracked over time' },
+]
+
+/** Two side-by-side options: an income/expense budget, or savings & debts. */
+function KindChoice({ value, onChange }: { value: BudgetKind; onChange: (kind: BudgetKind) => void }) {
+  return (
+    <div role="radiogroup" aria-label="Type" className="grid grid-cols-2 gap-2">
+      {kinds.map((kind) => {
+        const selected = kind.value === value
+        return (
+          <button
+            key={kind.value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onChange(kind.value)}
+            className={`rounded-xl border-2 bg-surface px-3 py-2.5 text-left ${selected ? 'border-brand' : 'border-transparent'}`}
+          >
+            <span className={`block font-semibold ${selected ? 'text-brand' : 'text-text'}`}>
+              {kind.label}
+            </span>
+            <span className="block text-xs text-muted">{kind.hint}</span>
+          </button>
+        )
+      })}
+    </div>
   )
 }

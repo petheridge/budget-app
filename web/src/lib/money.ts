@@ -1,6 +1,12 @@
 // All money is integer pence. Nothing here goes through a float.
 
-export type EntryType = 'income' | 'expense'
+/** income/expense belong to budgets; saving/debt to savings & debts budgets. */
+export type EntryType = 'income' | 'expense' | 'saving' | 'debt'
+
+/** Income and savings add to a total; expenses and debts take from it. */
+export function isPositive(type: EntryType): boolean {
+  return type === 'income' || type === 'saving'
+}
 
 export interface Amount {
   amount_pence: number
@@ -8,7 +14,7 @@ export interface Amount {
 }
 
 export function signedValue({ amount_pence, type }: Amount): number {
-  return type === 'income' ? amount_pence : -amount_pence
+  return isPositive(type) ? amount_pence : -amount_pence
 }
 
 export function sum(values: number[]): number {
@@ -16,13 +22,18 @@ export function sum(values: number[]): number {
 }
 
 export function incomeTotal(entries: Amount[]): number {
-  return sum(entries.filter((e) => e.type === 'income').map((e) => e.amount_pence))
+  return typeTotal(entries, 'income')
 }
 
 export function expenseTotal(entries: Amount[]): number {
-  return sum(entries.filter((e) => e.type === 'expense').map((e) => e.amount_pence))
+  return typeTotal(entries, 'expense')
 }
 
+export function typeTotal(entries: Amount[], type: EntryType): number {
+  return sum(entries.filter((e) => e.type === type).map((e) => e.amount_pence))
+}
+
+/** Budget balance, or net worth for a savings & debts budget. */
 export function balance(entries: Amount[]): number {
   return sum(entries.map(signedValue))
 }
@@ -41,6 +52,16 @@ export function formatUnsigned(pence: number): string {
 export function formatSigned(pence: number): string {
   if (pence === 0) return formatUnsigned(0)
   return `${pence > 0 ? '+' : '-'} ${formatUnsigned(pence)}`
+}
+
+/** Tailwind text colour for an entry's type: green for income and savings, red-orange otherwise. */
+export function typeColour(type: EntryType): string {
+  return isPositive(type) ? 'text-income' : 'text-expense'
+}
+
+/** A saving going up, or a debt going down. */
+export function isGoodChange(type: EntryType, change: number): boolean {
+  return isPositive(type) ? change > 0 : change < 0
 }
 
 /** Tailwind text colour for a balance. Entry amounts use their type colour instead. */

@@ -4,6 +4,8 @@ A self-hosted, simplified clone of the **Fudget** iOS budget planner. Runs on a 
 
 **Phase 1 goal:** separate budgets containing income (+) and expense (−) entries, with a clear total. Nothing more. Keep it simple; resist adding features not listed here.
 
+**Added since:** *savings & debts* budgets, which hold things like an ISA or a mortgage as current values recorded over time, with a monthly catch-up (see screen 4). They're the one place the app deals with dates.
+
 Use our own app name, icon and styling. Copy Fudget's *behaviour and layout*, not its branding or assets.
 
 ---
@@ -36,15 +38,22 @@ Store all money as **integer pence**. Never use floats for amounts. Totals are *
 ### `budgets`
 - `name` — text, required
 - `folder` — relation → `folders`, optional (null = root level)
+- `kind` — select: `budget` | `tracker` (savings & debts). Empty means `budget`. Can only be changed while the budget has no entries
 - `sort_order` — number
 
 ### `entries`
 - `budget` — relation → `budgets`, required, cascade delete
 - `name` — text, required
 - `amount_pence` — number (integer, always **positive**)
-- `type` — select: `income` | `expense`
+- `type` — select: `income` | `expense` (in budgets) or `saving` | `debt` (in savings & debts budgets). For savings and debts, `amount_pence` is the current value
 - `note` — text, optional
 - `sort_order` — number
+
+### `snapshots` (history of savings and debts)
+- `entry` — relation → `entries`, required, cascade delete
+- `amount_pence` — number (integer, positive): the value at the time
+- `created` — the date it was recorded
+- Written whenever a saving's or debt's value is set: when it's added, when an edit changes the amount, and for every item at each catch-up (unchanged ones too). The latest snapshot matches the entry's `amount_pence`
 
 ### Access rules
 Household app: any authenticated user can read/write all records. No public access. Create users via the PocketBase admin UI.
@@ -58,6 +67,8 @@ Household app: any authenticated user can read/write all records. No public acce
 - **Budget screen footer**: Income total, Expenses total, Balance
 - **Folder Balance** (shown inside a folder) = sum of balances of budgets *directly* in that folder
 - **All Budgets Balance** (root screen) = sum of balances of budgets at *root level only*. Budgets inside folders are **not** included. This matches observed Fudget behaviour.
+- **Net worth** (savings & debts budget) = its savings minus its debts. It shows on that budget's card (in brand colour) but is **never** included in Folder Balance or All Budgets Balance, which are about monthly money in and out
+- **Change since last** for a saving or debt = its current value minus the snapshot before the latest one. A saving going up or a debt going down is shown green (good); the opposite red-orange
 
 ---
 
@@ -100,9 +111,16 @@ Household app: any authenticated user can read/write all records. No public acce
 - **Edit** (from an entry's ⋮) opens a sheet, pre-filled: Name, Amount (£), Note (optional), Save / Cancel. Notes are added here
 - Also use a simple sheet to add or rename a budget or folder (name only, plus the folder to put it in).
 
+### 4. Savings & debts budget
+- Chosen when adding a budget ("Budget" or "Savings & debts"), or from the ⋮ menu while a budget is empty
+- Same header and row layout as a budget. Each row: name and current value in the type colour (savings green, debts red-orange), and under the value a small "▲ £ 250.00 since 1 Oct" (or "No change since…"). Tapping a row opens its **history**: every recorded value with its date and change, newest first
+- Bottom: **Add Saving** (green), **Add Debt** (red-orange), **Catch Up** (brand). Adding works inline, as for entries. Footer: Savings, Debts and a large **Net worth**
+- **Catch Up** opens a full page (not a sheet) listing every item with its current value filled in. Type over the ones that changed (Return moves to the next); Save records today's value for every item. A blank value keeps the current one
+- Debts are entered as positive amounts owed
+
 ### ⋮ menus
-- **Entry:** Edit, Delete (confirm)
-- **Budget:** Rename, Move to folder, Delete (confirm; deletes its entries)
+- **Entry:** Edit, Delete (confirm). Savings and debts also have History, and deleting one deletes its history
+- **Budget:** Rename, Move to folder, Change to Budget / Savings & debts (only while empty), Delete (confirm; deletes its entries)
 - **Folder:** Rename, Delete (only allowed when empty; otherwise explain why)
 
 ### Reordering
@@ -143,7 +161,7 @@ Drag to reorder entries within a budget, and cards within a list. Persist the re
 
 ## Out of scope for Phase 1 (do NOT build yet)
 
-Bottom tab bar (Starred / Settings / Account) · stars / repeating entries · paid status and Paid balance · partials · dates on entries · charts · search · sorting options · CSV export / print · copy / move entries between budgets · carry-over balances · passcode / Face ID lock · themes / dark mode · multiple currencies · reminders · importing Fudget data.
+Bottom tab bar (Starred / Settings / Account) · stars / repeating entries · paid status and Paid balance · partials · dates on budget entries (only savings & debts history has dates) · charts (including of savings & debts history) · search · sorting options · CSV export / print · copy / move entries between budgets · carry-over balances · passcode / Face ID lock · themes / dark mode · multiple currencies · reminders · importing Fudget data.
 
 These are candidates for later phases. Structure the code so they can be added without rewrites.
 
@@ -168,7 +186,7 @@ These are candidates for later phases. Structure the code so they can be added w
         ├── lib/pb.ts       # PocketBase client
         ├── lib/money.ts    # pence <-> display formatting, sum helpers (unit tested)
         ├── components/
-        └── routes/         # / , /folder/:id , /budget/:id
+        └── routes/         # / , /folder/:id , /budget/:id , /budget/:id/catch-up
 ```
 
 ## Development

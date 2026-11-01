@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react'
 import { useData } from '../lib/data'
-import { parsePence, type EntryType } from '../lib/money'
+import { entryTypeLabels } from '../lib/entryTypes'
+import { parsePence, typeColour, type EntryType } from '../lib/money'
 
 /**
  * A new entry typed straight into the list, in place of a pop-up sheet, so the
@@ -69,7 +70,8 @@ export function DraftEntryRow({
     else event.currentTarget.blur()
   }
 
-  const colour = type === 'income' ? 'text-income' : 'text-expense'
+  const colour = typeColour(type)
+  const labels = entryTypeLabels[type]
   // 16px text stops iOS zooming in on focus.
   const field = `min-w-0 bg-transparent text-base font-semibold outline-none placeholder:font-normal placeholder:text-muted ${colour}`
 
@@ -84,8 +86,8 @@ export function DraftEntryRow({
         <div className="flex items-center gap-2">
           <input
             ref={nameRef}
-            aria-label={type === 'income' ? 'Income name' : 'Expense name'}
-            placeholder={type === 'income' ? 'E.g. Salary' : 'E.g. Rent'}
+            aria-label={`${labels.noun} name`}
+            placeholder={labels.example}
             enterKeyHint="next"
             autoCapitalize="sentences"
             value={name}
@@ -95,8 +97,8 @@ export function DraftEntryRow({
           />
           <input
             ref={amountRef}
-            aria-label="Amount"
-            placeholder="Enter amount"
+            aria-label={labels.amount}
+            placeholder={labels.amount === 'Amount' ? 'Enter amount' : labels.amount}
             inputMode="decimal"
             enterKeyHint="done"
             value={amount}

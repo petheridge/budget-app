@@ -9,8 +9,11 @@ import {
   incomeTotal,
   parsePence,
   penceToInput,
+  isGoodChange,
   signedValue,
   sum,
+  typeColour,
+  typeTotal,
 } from './money'
 
 const income = (amount_pence: number): Amount => ({ amount_pence, type: 'income' })
@@ -99,5 +102,37 @@ describe('penceToInput', () => {
     for (const pence of [0, 5, 50, 435, 123456]) {
       expect(parsePence(penceToInput(pence))).toBe(pence)
     }
+  })
+})
+
+describe('savings and debts', () => {
+  const saving = (amount_pence: number): Amount => ({ amount_pence, type: 'saving' })
+  const debt = (amount_pence: number): Amount => ({ amount_pence, type: 'debt' })
+
+  it('adds savings and subtracts debts for net worth', () => {
+    expect(signedValue(saving(500))).toBe(500)
+    expect(signedValue(debt(500))).toBe(-500)
+    expect(balance([saving(2000000), saving(50000), debt(18000000)])).toBe(-15950000)
+  })
+
+  it('totals each type separately', () => {
+    const items = [saving(100), saving(250), debt(1000), income(7)]
+    expect(typeTotal(items, 'saving')).toBe(350)
+    expect(typeTotal(items, 'debt')).toBe(1000)
+    expect(incomeTotal(items)).toBe(7)
+  })
+
+  it('treats a saving going up and a debt going down as good', () => {
+    expect(isGoodChange('saving', 250)).toBe(true)
+    expect(isGoodChange('saving', -250)).toBe(false)
+    expect(isGoodChange('debt', -45000)).toBe(true)
+    expect(isGoodChange('debt', 45000)).toBe(false)
+    expect(isGoodChange('saving', 0)).toBe(false)
+    expect(isGoodChange('debt', 0)).toBe(false)
+  })
+
+  it('colours savings like income and debts like expenses', () => {
+    expect(typeColour('saving')).toBe('text-income')
+    expect(typeColour('debt')).toBe('text-expense')
   })
 })

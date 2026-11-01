@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useData } from '../lib/data'
+import { entryTypeLabels } from '../lib/entryTypes'
 import { parsePence, penceToInput, type EntryType } from '../lib/money'
 import type { Entry } from '../lib/pb'
 import { FormSheet, inputClass } from './Sheet'
@@ -39,7 +40,7 @@ export function EntrySheet({
     onClose()
   }
 
-  const noun = type === 'income' ? 'Income' : 'Expense'
+  const { noun, amount: amountLabel } = entryTypeLabels[type]
 
   return (
     <FormSheet
@@ -58,7 +59,7 @@ export function EntrySheet({
         />
       </label>
       <label className="text-sm text-muted">
-        Amount
+        {amountLabel}
         <span className="relative block">
           <span className="absolute top-1/2 left-3 mt-0.5 -translate-y-1/2 text-base text-text">
             £
