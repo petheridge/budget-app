@@ -62,16 +62,6 @@ export function DotsIcon() {
   )
 }
 
-export function GripIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="size-5">
-      {[9, 15].flatMap((cx) =>
-        [6, 12, 18].map((cy) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1.5" />),
-      )}
-    </svg>
-  )
-}
-
 export function PencilIcon() {
   return (
     <Icon className="mt-0.5 size-3 shrink-0">

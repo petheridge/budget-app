@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { BudgetMenu } from '../components/BudgetMenu'
 import { FolderMenu } from '../components/FolderMenu'
@@ -83,10 +83,9 @@ export function BudgetList() {
           onReorder={reorderCards}
           className="flex flex-col gap-2.5"
         >
-          {(card, handle) => (
+          {(card) => (
             <CardRow
               card={card}
-              handle={handle}
               balance={card.kind === 'budget' ? budgetBalance(entries, card.record.id) : 0}
               onMenu={() => setSheet({ kind: 'cardMenu', key: card.key })}
             />
@@ -146,22 +145,19 @@ export function BudgetList() {
 
 function CardRow({
   card,
-  handle,
   balance,
   onMenu,
 }: {
   card: Card
-  handle: ReactNode
   balance: number
   onMenu: () => void
 }) {
   const isFolder = card.kind === 'folder'
   return (
     <div className="flex min-h-[68px] items-stretch rounded-xl bg-surface shadow-[0_1px_4px_rgba(0,0,0,0.1)]">
-      {handle}
       <Link
         to={isFolder ? `/folder/${card.record.id}` : `/budget/${card.record.id}`}
-        className="flex min-w-0 flex-1 items-center gap-2 pr-2"
+        className="flex min-w-0 flex-1 items-center gap-2 pr-2 pl-4"
       >
         {isFolder && <FolderIcon />}
         <span className="min-w-0 flex-1 truncate text-text">{card.record.name}</span>

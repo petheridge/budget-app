@@ -65,12 +65,11 @@ export function BudgetDetail() {
 
       <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <ReorderList items={rows} getId={(entry) => entry.id} onReorder={reorderEntries}>
-          {(entry, handle) => {
+          {(entry) => {
             const colour = typeColour(entry.type)
             return (
-              <div className="flex min-h-[68px] items-stretch border-b border-black/10 bg-surface">
-                {handle}
-                <div className="flex min-w-0 flex-1 items-center gap-2 py-2 pr-2">
+              <div className="flex min-h-[54px] items-stretch border-b border-black/10 bg-surface">
+                <div className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-2 pl-4">
                   <div className="min-w-0 flex-1">
                     <p className={`font-semibold break-words ${colour}`}>{entry.name}</p>
                     {entry.note && (

@@ -62,13 +62,12 @@ export function TrackerDetail({ budget }: { budget: Budget }) {
 
       <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <ReorderList items={rows} getId={(entry) => entry.id} onReorder={reorderEntries}>
-          {(entry, handle) => {
+          {(entry) => {
             const colour = typeColour(entry.type)
             const moved = changeSincePrevious(entry, snapshots)
             return (
-              <div className="flex min-h-[68px] items-stretch border-b border-black/10 bg-surface">
-                {handle}
-                <div className="flex min-w-0 flex-1 items-center gap-2 py-2 pr-2">
+              <div className="flex min-h-[54px] items-stretch border-b border-black/10 bg-surface">
+                <div className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-2 pl-4">
                   <button
                     type="button"
                     aria-label={`${entry.name} history`}
