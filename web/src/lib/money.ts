@@ -87,3 +87,84 @@ export function parsePence(input: string): number | null {
 export function penceToInput(pence: number): string {
   return `${Math.floor(pence / 100)}.${String(pence % 100).padStart(2, '0')}`
 }
+
+export type AmountResult = { ok: true; pence: number } | { ok: false; error: string }
+
+/** The keypad's operator symbols, plus the keyboard's for typing on a computer. */
+const OPERATORS: Record<string, '+' | '-' | '*' | '/'> = {
+  '+': '+', '-': '-', '−': '-', '*': '*', '×': '*', x: '*', '/': '/', '÷': '/',
+}
+
+/** "12.5" -> 125 / 10, exactly: no floats. */
+function parseFraction(text: string): { n: number; d: number } | null {
+  if (!/^(\d+\.?\d*|\.\d+)$/.test(text)) return null
+  const [whole, decimals = ''] = text.split('.')
+  const d = 10 ** decimals.length
+  const n = Number(whole || '0') * d + Number(decimals || '0')
+  return Number.isSafeInteger(n) && Number.isSafeInteger(d) ? { n, d } : null
+}
+
+/** Rounds n / d (both non-negative) to the nearest whole number, halves up. */
+function roundDiv(n: number, d: number): number {
+  const q = Math.floor(n / d)
+  return 2 * (n - q * d) >= d ? q + 1 : q
+}
+
+/**
+ * Works out a typed amount or sum, in whole pence. Accepts plain amounts ("12.50",
+ * "£1,234.56") and sums like "12400+250", "1200÷12" or "48×12".
+ *
+ * In each part of a sum, the first number is money (up to 2 decimal places) and
+ * any number it's multiplied or divided by is a plain number, so "1200÷12" is
+ * £100.00. × and ÷ come before + and −. Each part is rounded to the penny.
+ * A trailing operator is ignored. Returns null for an empty input.
+ */
+export function evaluateAmount(input: string): AmountResult | null {
+  const text = input.replace(/[£,\s]/g, '')
+  if (text === '') return null
+  const tokens = text.match(/\d+\.\d*|\.\d+|\d+|[+\-−*×x/÷]/g)
+  if (!tokens || tokens.join('') !== text) return { ok: false, error: 'Check the amount, like 12.50' }
+  while (tokens.length && OPERATORS[tokens[tokens.length - 1]]) tokens.pop()
+  if (!tokens.length) return null
+
+  let total = 0
+  let sign = 1
+  let i = 0
+  if (OPERATORS[tokens[0]] === '-' || OPERATORS[tokens[0]] === '+') {
+    sign = OPERATORS[tokens[0]] === '-' ? -1 : 1
+    i = 1
+  }
+  while (i < tokens.length) {
+    // One part: money, then any × or ÷ by plain numbers.
+    const money = parseFraction(tokens[i] ?? '')
+    if (!money) return { ok: false, error: 'Check the sum' }
+    if (money.d > 100) return { ok: false, error: 'Use up to 2 decimal places for amounts' }
+    let n = money.n * (100 / money.d)
+    let d = 1
+    i++
+    while (i < tokens.length && (OPERATORS[tokens[i]] === '*' || OPERATORS[tokens[i]] === '/')) {
+      const op = OPERATORS[tokens[i]]
+      const factor = parseFraction(tokens[i + 1] ?? '')
+      if (!factor) return { ok: false, error: 'Check the sum' }
+      if (op === '/' && factor.n === 0) return { ok: false, error: "Can't divide by zero" }
+      n *= op === '*' ? factor.n : factor.d
+      d *= op === '*' ? factor.d : factor.n
+      if (!Number.isSafeInteger(n) || !Number.isSafeInteger(d)) return { ok: false, error: "That's too large" }
+      i += 2
+    }
+    total += sign * roundDiv(n, d)
+    if (i >= tokens.length) break
+    const op = OPERATORS[tokens[i]]
+    if (op !== '+' && op !== '-') return { ok: false, error: 'Check the sum' }
+    sign = op === '-' ? -1 : 1
+    i++
+  }
+  if (!Number.isSafeInteger(total)) return { ok: false, error: "That's too large" }
+  if (total < 0) return { ok: false, error: "Can't be less than £ 0.00" }
+  return { ok: true, pence: total }
+}
+
+/** True when the text is a sum rather than a single amount. */
+export function isSum(input: string): boolean {
+  return /\d\s*[+\-−*×x/÷]\s*[\d.]/.test(input.replace(/[£,]/g, ''))
+}

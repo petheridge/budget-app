@@ -107,15 +107,23 @@ Household app: any authenticated user can read/write all records. No public acce
   - Right: "Balance" label in grey, with a large coloured balance below it
 
 ### 3. Adding and editing entries
-- **Add Income** / **Add Expense** adds a blank row inline at the end of the list (no pop-up, so the screen doesn't jump when the keyboard opens), with `type` set by the button pressed. Name is focused; Return moves to Amount (numeric keypad). Leaving the row saves it; a blank name discards it; an empty amount saves as £0.00; ✕ cancels
+- **Add Income** / **Add Expense** adds a blank row inline at the end of the list (no pop-up, so the screen doesn't jump when the keyboard opens), with `type` set by the button pressed. Name is focused; Return opens the amount keypad, whose Save saves the row. Tapping outside the row and keypad also saves it; a blank name discards it; an empty amount saves as £0.00; ✕ cancels
 - **Edit** (from an entry's ⋮) opens a sheet, pre-filled: Name, Amount (£), Note (optional), Save / Cancel. Notes are added here
 - Also use a simple sheet to add or rename a budget or folder (name only, plus the folder to put it in).
+
+### Amount keypad
+- Every amount (inline add, Edit sheet, Catch Up) opens the app's own keypad, not the iPhone keyboard, so amounts can be sums: digits, `.`, ⌫, + − × ÷ and a full-width Done (Save on an inline row, Next on Catch Up until the last item)
+- A line above the keys shows the sum and its result ("576 ÷ 12   = £ 48.00"), or what's wrong ("Can't be less than £ 0.00"), and Done then stays open
+- With a value already there, a digit replaces it and an operator carries on from it: "+ 250" adds to the current value
+- × and ÷ come before + and −. In each part of a sum the first number is money (up to 2 decimal places) and multipliers and divisors are plain numbers. Each part is rounded to the penny, all in integer pence (`evaluateAmount` in `money.ts`, unit tested). Only the result is stored, not the sum
+- It's part of the page (fixed to the bottom, above sheets), so nothing jumps. A computer keyboard types into it too
+- Names and notes still use the iPhone keyboard
 
 ### 4. Savings & debts budget
 - Chosen when adding a budget ("Budget" or "Savings & debts"), or from the ⋮ menu while a budget is empty
 - Same header and row layout as a budget. Each row: name and current value in the type colour (savings green, debts red-orange), and under the value a small "▲ £ 250.00 since 1 Oct" (or "No change since…"). Tapping a row opens its **history**: every recorded value with its date and change, newest first
 - Bottom: **Add Saving** (green), **Add Debt** (red-orange), **Catch Up** (brand). Adding works inline, as for entries. Footer: Savings, Debts and a large **Net worth**
-- **Catch Up** opens a full page (not a sheet) listing every item with its current value filled in. Type over the ones that changed (Return moves to the next); Save records today's value for every item. A blank value keeps the current one
+- **Catch Up** opens a full page (not a sheet) listing every item with its current value filled in. Tap a value to change it with the keypad (start with + or − to add or take away; Next moves down the list); Save records today's value for every item. A blank value keeps the current one
 - Debts are entered as positive amounts owed
 
 ### ⋮ menus
@@ -202,7 +210,7 @@ These are candidates for later phases. Structure the code so they can be added w
 - Bind Vite to `0.0.0.0` so the app can be tested on an iPhone over the LAN
 - iOS home-screen app: the screen-edge colours and the blur under the status bar are controlled by WebKit, which looks for a fixed, full-width, opaque element at each edge. `web/src/components/EdgeBars.tsx` provides them; don't remove them or make them translucent. The page itself is pinned (`body` fixed) and only each screen's `<main>` scrolls. Neither can be checked in a desktop browser or headless Chromium, only on the phone
 - Define the schema in **migrations** (`pb_migrations/`), never only by clicking in the admin UI
-- Unit test `money.ts`: formatting, signs, zero handling and totals
+- Unit test `money.ts`: formatting, signs, zero handling, totals and sums typed on the keypad
 
 ## Deployment
 
