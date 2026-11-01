@@ -1,4 +1,4 @@
-import { balance, sum, type Amount } from './money'
+import { balance, isPositive, sum, type Amount } from './money'
 import { isTracker, type Budget, type Entry, type Folder, type Snapshot } from './pb'
 
 export type Card =
@@ -123,4 +123,18 @@ export function expectedValue(
   const change = months * monthly
   const pence = item.type === 'debt' ? Math.max(0, item.amount_pence - change) : item.amount_pence + change
   return { pence, monthly, months }
+}
+
+/**
+ * Entries sorted by amount, for "Sort by amount" in a budget's menu. Income (or
+ * savings) stays above expenses (or debts), each sorted largest or smallest
+ * first; equal amounts keep their current order.
+ */
+export function sortByAmount(entries: Entry[], order: 'largest' | 'smallest'): Entry[] {
+  const direction = order === 'largest' ? -1 : 1
+  return [...entries].sort(
+    (a, b) =>
+      Number(isPositive(b.type)) - Number(isPositive(a.type)) ||
+      direction * (a.amount_pence - b.amount_pence),
+  )
 }

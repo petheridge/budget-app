@@ -1,25 +1,25 @@
 import {
   closestCenter,
   DndContext,
-  KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
   type Modifier,
 } from '@dnd-kit/core'
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { ReactNode } from 'react'
-import { GripIcon } from './icons'
 
 const verticalOnly: Modifier = ({ transform }) => ({ ...transform, x: 0 })
+
+/**
+ * Press and hold anywhere on a row to pick it up, then drag to reorder, as in
+ * Fudget. A tap still reaches the row's links and buttons, and a quick swipe
+ * still scrolls the list: moving before the hold completes cancels the drag.
+ */
+const HOLD = { delay: 350, tolerance: 8 }
 
 export function ReorderList<T>({
   items,
@@ -32,14 +32,15 @@ export function ReorderList<T>({
   getId: (item: T) => string
   onReorder: (items: T[]) => void
   className?: string
-  children: (item: T, handle: ReactNode) => ReactNode
+  children: (item: T) => ReactNode
 }) {
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(TouchSensor, { activationConstraint: HOLD }),
+    useSensor(MouseSensor, { activationConstraint: HOLD }),
   )
 
   function onDragEnd({ active, over }: DragEndEvent) {
+    swallowNextClick()
     if (!over || active.id === over.id) return
     const ids = items.map(getId)
     onReorder(arrayMove(items, ids.indexOf(String(active.id)), ids.indexOf(String(over.id))))
@@ -51,11 +52,14 @@ export function ReorderList<T>({
       collisionDetection={closestCenter}
       modifiers={[verticalOnly]}
       onDragEnd={onDragEnd}
+      onDragCancel={swallowNextClick}
     >
       <SortableContext items={items.map(getId)} strategy={verticalListSortingStrategy}>
         <ul className={className}>
           {items.map((item) => (
-            <Row key={getId(item)} id={getId(item)} render={(handle) => children(item, handle)} />
+            <Row key={getId(item)} id={getId(item)}>
+              {children(item)}
+            </Row>
           ))}
         </ul>
       </SortableContext>
@@ -63,30 +67,31 @@ export function ReorderList<T>({
   )
 }
 
-function Row({ id, render }: { id: string; render: (handle: ReactNode) => ReactNode }) {
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
-    useSortable({ id })
+/**
+ * Letting go after a drag would otherwise count as a tap on whatever is under
+ * the finger, opening a budget or an amount's keypad.
+ */
+function swallowNextClick() {
+  const swallow = (event: MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+  }
+  window.addEventListener('click', swallow, { capture: true, once: true })
+  window.setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 400)
+}
 
-  const handle = (
-    <button
-      type="button"
-      ref={setActivatorNodeRef}
-      aria-label="Drag to reorder"
-      className="flex w-9 shrink-0 cursor-grab touch-none items-center justify-center self-stretch text-muted/60"
-      {...attributes}
-      {...listeners}
-    >
-      <GripIcon />
-    </button>
-  )
+function Row({ id, children }: { id: string; children: ReactNode }) {
+  const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
 
   return (
     <li
       ref={setNodeRef}
-      className={isDragging ? 'relative z-10 opacity-90' : undefined}
+      {...listeners}
+      // No text selection or iOS link preview on a long press, which is how a row is picked up.
+      className={`touch-manipulation select-none [-webkit-touch-callout:none] [&_*]:[-webkit-touch-callout:none] ${isDragging ? 'relative z-10 scale-[1.02] opacity-95 shadow-[0_4px_12px_rgba(0,0,0,0.18)]' : ''}`}
       style={{ transform: CSS.Translate.toString(transform), transition }}
     >
-      {render(handle)}
+      {children}
     </li>
   )
 }

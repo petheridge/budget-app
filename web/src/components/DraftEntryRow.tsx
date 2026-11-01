@@ -95,9 +95,8 @@ export function DraftEntryRow({
   const labels = entryTypeLabels[type]
 
   return (
-    <div ref={rowRef} className="flex min-h-[68px] items-stretch border-b border-black/10 bg-surface">
-      <div className="w-9 shrink-0" />
-      <div className="flex min-w-0 flex-1 flex-col justify-center py-2 pr-2">
+    <div ref={rowRef} className="flex min-h-[54px] items-stretch border-b border-black/10 bg-surface">
+      <div className="flex min-w-0 flex-1 flex-col justify-center py-1.5 pr-2 pl-4">
         <div className="flex items-center gap-2">
           <input
             ref={nameRef}

@@ -96,7 +96,7 @@ Household app: any authenticated user can read/write all records. No public acce
 
 **Header (brand colour):** back button labelled with the parent ("‹ 📁 Monthly" or "‹ Budgets") · budget name as title · menu icon.
 
-**Entry list:** flat full-width white rows separated by thin grey lines (not cards).
+**Entry list:** flat full-width white rows separated by thin grey lines (not cards), compact (about 54px) like Fudget's.
 - Entry name (left) **and** amount (right) are both coloured by type: green for income, red-orange for expense. Medium/semibold weight.
 - If a note exists, show it as a second line under the name: small grey text with a pencil icon.
 - Vertical divider, then an brand-coloured ⋮ menu column on the right.
@@ -132,11 +132,12 @@ Household app: any authenticated user can read/write all records. No public acce
 
 ### ⋮ menus
 - **Entry:** Edit, Delete (confirm). Savings and debts also have History, and deleting one deletes its history. Budget expenses also have Link to saving or debt / Change link (with Remove Link)
-- **Budget:** Rename, Move to folder, Change to Budget / Savings & debts (only while empty), Delete (confirm; deletes its entries)
+- **Budget:** Sort by amount (Largest first / Smallest first; with 2+ entries), Rename, Move to folder, Change to Budget / Savings & debts (only while empty), Delete (confirm; deletes its entries)
 - **Folder:** Rename, Delete (only allowed when empty; otherwise explain why)
 
 ### Reordering
-Drag to reorder entries within a budget, and cards within a list. Persist the result to `sort_order`.
+- **Press and hold** a row or card (about a third of a second), then drag, to reorder entries within a budget and cards within a list. No drag handles. A tap still reaches the row's links and buttons, moving before the hold completes scrolls instead, and letting go after a drag isn't a tap. Persist the result to `sort_order`
+- **Sort by amount** (budget menu) is a one-off reorder, not a mode: income (or savings) stays above expenses (or debts), each largest or smallest first; equal amounts keep their order (`sortByAmount` in `selectors.ts`). Rows can be moved by hand afterwards
 
 ---
 
@@ -165,7 +166,7 @@ Drag to reorder entries within a budget, and cards within a list. Persist the re
 | `folder` | `#C9C4EE` | Folder icon fill |
 
 - Font: system UI stack (`-apple-system, …`)
-- Large, readable numbers; generous row height (about 64–72px)
+- Large, readable numbers. Entry rows compact (about 54px); budget and folder cards roomier (about 68px)
 - Buttons: rounded (about 12px radius), bold white text
 - Respect the iOS safe areas (notch and home indicator) in the header and bottom bars
 
@@ -173,7 +174,7 @@ Drag to reorder entries within a budget, and cards within a list. Persist the re
 
 ## Out of scope for Phase 1 (do NOT build yet)
 
-Bottom tab bar (Starred / Settings / Account) · stars / repeating entries · paid status and Paid balance · partials · dates on budget entries (only savings & debts history has dates) · charts (including of savings & debts history) · search · sorting options · CSV export / print · copy / move entries between budgets · carry-over balances · passcode / Face ID lock · themes / dark mode · multiple currencies · reminders · importing Fudget data.
+Bottom tab bar (Starred / Settings / Account) · stars / repeating entries · paid status and Paid balance · partials · dates on budget entries (only savings & debts history has dates) · charts (including of savings & debts history) · search · other sorting options (sorting by name, or a lasting sort mode) · CSV export / print · copy / move entries between budgets · carry-over balances · passcode / Face ID lock · themes / dark mode · multiple currencies · reminders · importing Fudget data.
 
 These are candidates for later phases. Structure the code so they can be added without rewrites.
 

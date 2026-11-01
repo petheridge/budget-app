@@ -12,6 +12,7 @@ import {
   linkTarget,
   monthsBetween,
   nextSortOrder,
+  sortByAmount,
 } from './selectors'
 
 const base = { collectionId: '', collectionName: '', created: '2026-01-01' }
@@ -172,5 +173,24 @@ describe('links and expected values', () => {
 
   it('falls back to when the item was added if it has no history', () => {
     expect(expectedValue(isa, entries, budgets, [], nov)?.months).toBe(2)
+  })
+})
+
+describe('sortByAmount', () => {
+  const e = (id: string, amount_pence: number, type: Entry['type']) =>
+    ({ ...entry('b', amount_pence, type), id }) as Entry
+  const list = [e('food', 45000, 'expense'), e('salary', 320000, 'income'), e('mortgage', 248289, 'expense'), e('water', 7300, 'expense'), e('bonus', 50000, 'income'), e('tv', 7300, 'expense')]
+
+  it('puts income first, then expenses, each largest first', () => {
+    expect(sortByAmount(list, 'largest').map((x) => x.id)).toEqual(['salary', 'bonus', 'mortgage', 'food', 'water', 'tv'])
+  })
+
+  it('can go smallest first, keeping equal amounts in their current order', () => {
+    expect(sortByAmount(list, 'smallest').map((x) => x.id)).toEqual(['bonus', 'salary', 'water', 'tv', 'food', 'mortgage'])
+  })
+
+  it('puts savings above debts', () => {
+    const items = [e('mortgage', 18000000, 'debt'), e('isa', 1200000, 'saving')]
+    expect(sortByAmount(items, 'largest').map((x) => x.id)).toEqual(['isa', 'mortgage'])
   })
 })
