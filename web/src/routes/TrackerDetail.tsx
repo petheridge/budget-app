@@ -20,8 +20,8 @@ import {
   typeTotal,
   type EntryType,
 } from '../lib/money'
-import type { Budget } from '../lib/pb'
-import { changeSincePrevious, entriesIn } from '../lib/selectors'
+import type { Budget, Entry } from '../lib/pb'
+import { changeSincePrevious, entriesIn, linkedInto } from '../lib/selectors'
 
 type Sheet = { kind: 'budgetMenu' } | { kind: 'entryMenu'; id: string } | { kind: 'history'; id: string }
 
@@ -31,7 +31,7 @@ type Sheet = { kind: 'budgetMenu' } | { kind: 'entryMenu'; id: string } | { kind
  */
 export function TrackerDetail({ budget }: { budget: Budget }) {
   const navigate = useNavigate()
-  const { folders, entries, snapshots, reorderEntries } = useData()
+  const { folders, budgets, entries, snapshots, reorderEntries } = useData()
   const [sheet, setSheet] = useState<Sheet | null>(null)
   const close = () => setSheet(null)
   // As in BudgetDetail: the key lets a row that finishes saving late close only itself.
@@ -82,6 +82,7 @@ export function TrackerDetail({ budget }: { budget: Budget }) {
                         <span className="min-w-0">{entry.note}</span>
                       </span>
                     )}
+                    <LinkedFrom links={linkedInto(entry, entries, budgets)} budgets={budgets} />
                   </button>
                   <InlineAmount
                     entry={entry}
@@ -183,5 +184,17 @@ export function TrackerDetail({ budget }: { budget: Budget }) {
       {sheet?.kind === 'entryMenu' && openEntry && <EntryMenu entry={openEntry} onClose={close} />}
       {sheet?.kind === 'history' && openEntry && <HistorySheet entry={openEntry} onClose={close} />}
     </div>
+  )
+}
+
+/** "£ 250.00 a month from Household" under a saving or debt with linked payments. */
+function LinkedFrom({ links, budgets }: { links: Entry[]; budgets: Budget[] }) {
+  if (links.length === 0) return null
+  const monthly = links.reduce((total, e) => total + e.amount_pence, 0)
+  const from = [...new Set(links.map((e) => budgets.find((b) => b.id === e.budget)?.name))].join(', ')
+  return (
+    <span className="mt-0.5 block text-xs break-words text-brand">
+      {formatUnsigned(monthly)} a month from {from}
+    </span>
   )
 }

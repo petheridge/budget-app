@@ -18,9 +18,9 @@ import {
   typeColour,
   type EntryType,
 } from '../lib/money'
-import { isTracker } from '../lib/pb'
+import { isTracker, type Entry } from '../lib/pb'
 import { TrackerDetail } from './TrackerDetail'
-import { entriesIn } from '../lib/selectors'
+import { entriesIn, linkTarget } from '../lib/selectors'
 
 type Sheet =
   | { kind: 'budgetMenu' }
@@ -79,6 +79,7 @@ export function BudgetDetail() {
                         <span className="min-w-0">{entry.note}</span>
                       </p>
                     )}
+                    <LinkedTo entry={entry} />
                   </div>
                   <InlineAmount
                     entry={entry}
@@ -155,4 +156,12 @@ export function BudgetDetail() {
       {openEntry && <EntryMenu entry={openEntry} onClose={close} />}
     </div>
   )
+}
+
+/** "→ Cash ISA" under an expense linked to a saving or debt. */
+function LinkedTo({ entry }: { entry: Entry }) {
+  const { entries, budgets } = useData()
+  const target = linkTarget(entry, entries, budgets)
+  if (!target) return null
+  return <p className="mt-0.5 text-xs break-words text-brand">→ {target.name}</p>
 }

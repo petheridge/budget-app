@@ -47,6 +47,7 @@ Store all money as **integer pence**. Never use floats for amounts. Totals are *
 - `amount_pence` — number (integer, always **positive**)
 - `type` — select: `income` | `expense` (in budgets) or `saving` | `debt` (in savings & debts budgets). For savings and debts, `amount_pence` is the current value
 - `note` — text, optional
+- `link` — relation → `entries`, optional. On a budget **expense** only: the saving or debt it pays into. Cleared by PocketBase when that item (or its budget) is deleted
 - `sort_order` — number
 
 ### `snapshots` (history of savings and debts)
@@ -68,6 +69,7 @@ Household app: any authenticated user can read/write all records. No public acce
 - **Folder Balance** (shown inside a folder) = sum of balances of budgets *directly* in that folder
 - **All Budgets Balance** (root screen) = sum of balances of budgets at *root level only*. Budgets inside folders are **not** included. This matches observed Fudget behaviour.
 - **Net worth** (savings & debts budget) = its savings minus its debts. It shows on that budget's card (in brand colour) but is **never** included in Folder Balance or All Budgets Balance, which are about monthly money in and out
+- **Expected value** of a saving or debt (a Catch Up suggestion, never stored) = its current value plus (saving) or minus (debt, not below £0) the sum of the budget expenses linked to it, once for each calendar month since its last recorded value. None when nothing is linked or no month has passed (`expectedValue` in `selectors.ts`)
 - **Change since last** for a saving or debt = its current value minus the snapshot before the latest one. A saving going up or a debt going down is shown green (good); the opposite red-orange
 
 ---
@@ -124,11 +126,12 @@ Household app: any authenticated user can read/write all records. No public acce
 - Chosen when adding a budget ("Budget" or "Savings & debts"), or from the ⋮ menu while a budget is empty
 - Same header and row layout as a budget. Each row: name and current value in the type colour (savings green, debts red-orange), and under the value a small "▲ £ 250.00 since 1 Oct" (or "No change since…"). Tapping the value opens the keypad to change it in place (recorded in history); tapping the name opens its **history**: every recorded value with its date and change, newest first
 - Bottom: **Add Saving** (green), **Add Debt** (red-orange), **Catch Up** (brand). Adding works inline, as for entries. Footer: Savings, Debts and a large **Net worth**
-- **Catch Up** opens a full page (not a sheet) listing every item with its current value filled in. Tap a value to change it with the keypad (start with + or − to add or take away; Next moves down the list); Save records today's value for every item. A blank value keeps the current one
+- **Linking:** a budget expense's ⋮ has **Link to saving or debt** (then **Change link**), choosing from every savings & debts item. The expense shows "→ Cash ISA" under its name; the saving or debt shows "£ 250.00 a month from Household" under its name. Expected values are suggestions only: nothing changes until Catch Up is saved, because a budget is a plan, not a record of payments
+- **Catch Up** opens a full page (not a sheet) listing every item with its current value filled in, or its **expected value** if it has linked payments (with "Expected: + £ 250.00 a month" under it). Tap a value to change it with the keypad (start with + or − to add or take away; Next moves down the list); Save records today's value for every item. A blank value keeps the current one
 - Debts are entered as positive amounts owed
 
 ### ⋮ menus
-- **Entry:** Edit, Delete (confirm). Savings and debts also have History, and deleting one deletes its history
+- **Entry:** Edit, Delete (confirm). Savings and debts also have History, and deleting one deletes its history. Budget expenses also have Link to saving or debt / Change link (with Remove Link)
 - **Budget:** Rename, Move to folder, Change to Budget / Savings & debts (only while empty), Delete (confirm; deletes its entries)
 - **Folder:** Rename, Delete (only allowed when empty; otherwise explain why)
 
@@ -173,6 +176,8 @@ Drag to reorder entries within a budget, and cards within a list. Persist the re
 Bottom tab bar (Starred / Settings / Account) · stars / repeating entries · paid status and Paid balance · partials · dates on budget entries (only savings & debts history has dates) · charts (including of savings & debts history) · search · sorting options · CSV export / print · copy / move entries between budgets · carry-over balances · passcode / Face ID lock · themes / dark mode · multiple currencies · reminders · importing Fudget data.
 
 These are candidates for later phases. Structure the code so they can be added without rewrites.
+
+**Next planned (stage 2 of linking):** an interest rate on savings and debts (stored as basis points, an integer) and a term or end date on debts, so expected values include interest and debts show a projected payoff date. Still suggestions, confirmed at Catch Up.
 
 ---
 

@@ -25,6 +25,8 @@ export interface Entry extends RecordModel {
   amount_pence: number
   type: EntryType
   note: string
+  /** For a budget expense: the saving or debt it pays into ('' for none). */
+  link?: string
   sort_order: number
   created: string
 }

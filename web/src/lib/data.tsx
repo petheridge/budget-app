@@ -202,10 +202,15 @@ function useStore() {
         await record(entry.id, entry.amount_pence)
       }
     },
+    /** Links a budget expense to the saving or debt it pays into ('' to unlink). */
+    async setEntryLink(id: string, link: string) {
+      entries.upsert(await entries.service.update(id, { link }))
+    },
     deleteEntry(id: string) {
       entries.drop(id)
-      // The server deletes its snapshots too.
+      // The server deletes its snapshots too, and clears any links to it.
       for (const s of snapshots.records) if (s.entry === id) snapshots.drop(s.id)
+      for (const e of entries.records) if (e.link === id) entries.upsert({ ...e, link: '' })
       guard('delete the entry', entries.service.delete(id))
     },
     /**
