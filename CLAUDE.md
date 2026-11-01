@@ -18,7 +18,7 @@ Use our own app name, icon and styling. Copy Fudget's *behaviour and layout*, no
 | Frontend | **React + Vite + TypeScript** | |
 | Styling | **Tailwind CSS** | Colours as theme tokens (see below) |
 | Data access | `pocketbase` JS SDK | Use realtime subscriptions so two phones stay in sync |
-| Reordering | `@dnd-kit` | Drag handles on rows/cards |
+| Reordering | `@dnd-kit` | Press and hold a row or card, then drag |
 | PWA | `vite-plugin-pwa` | Manifest + icons so it installs to the iPhone home screen |
 | Deploy | Docker Compose, single container | PocketBase serves the built frontend from `pb_public/` |
 
@@ -110,6 +110,7 @@ Household app: any authenticated user can read/write all records. No public acce
 
 ### 3. Adding and editing entries
 - **Add Income** / **Add Expense** adds a blank row inline at the end of the list (no pop-up, so the screen doesn't jump when the keyboard opens), with `type` set by the button pressed. Name is focused; Return opens the amount keypad, whose Save saves the row. Tapping outside the row and keypad also saves it; a blank name discards it; an empty amount saves as £0.00; ✕ cancels
+- **Tap a name in the list** to rename it in place: it becomes a text box; Return or tapping elsewhere saves, Escape or a blank name keeps the old one. (On savings & debts rows too; their history is in ⋮)
 - **Tap an amount in the list** to change it in place: the keypad opens on the current value (a digit replaces it, + or − works from it). Done saves; so does tapping elsewhere, unless the sum doesn't work out, which leaves it unchanged
 - **Edit** (from an entry's ⋮) opens a sheet, pre-filled: Name, Amount (£), Note (optional), Save / Cancel. Notes are added here
 - Also use a simple sheet to add or rename a budget or folder (name only, plus the folder to put it in).
@@ -124,15 +125,16 @@ Household app: any authenticated user can read/write all records. No public acce
 
 ### 4. Savings & debts budget
 - Chosen when adding a budget ("Budget" or "Savings & debts"), or from the ⋮ menu while a budget is empty
-- Same header and row layout as a budget. Each row: name and current value in the type colour (savings green, debts red-orange), and under the value a small "▲ £ 250.00 since 1 Oct" (or "No change since…"). Tapping the value opens the keypad to change it in place (recorded in history); tapping the name opens its **history**: every recorded value with its date and change, newest first
+- Same header and row layout as a budget. Each row: name and current value in the type colour (savings green, debts red-orange), and under the value a small "▲ £ 250.00 since 1 Oct" (or "No change since…"). Tapping the value opens the keypad to change it in place (recorded in history); tapping the name renames it. **History** (from ⋮) lists every recorded value with its date and change, newest first
 - Bottom: **Add Saving** (green), **Add Debt** (red-orange), **Catch Up** (brand). Adding works inline, as for entries. Footer: Savings, Debts and a large **Net worth**
 - **Linking:** a budget expense's ⋮ has **Link to saving or debt** (then **Change link**), choosing from every savings & debts item. The expense shows "→ Cash ISA" under its name; the saving or debt shows "£ 250.00 a month from Household" under its name. Expected values are suggestions only: nothing changes until Catch Up is saved, because a budget is a plan, not a record of payments
 - **Catch Up** opens a full page (not a sheet) listing every item with its current value filled in, or its **expected value** if it has linked payments (with "Expected: + £ 250.00 a month" under it). Tap a value to change it with the keypad (start with + or − to add or take away; Next moves down the list); Save records today's value for every item. A blank value keeps the current one
 - Debts are entered as positive amounts owed
 
 ### ⋮ menus
-- **Entry:** Edit, Delete (confirm). Savings and debts also have History, and deleting one deletes its history. Budget expenses also have Link to saving or debt / Change link (with Remove Link)
-- **Budget:** Sort by amount (Largest first / Smallest first; with 2+ entries), Rename, Move to folder, Change to Budget / Savings & debts (only while empty), Delete (confirm; deletes its entries)
+- **Entry:** Edit, Delete (no confirm: a "Deleted “Water” · Undo" message shows for 6 seconds). Savings and debts also have History, and deleting one deletes its history. Budget expenses also have Link to saving or debt / Change link (with Remove Link)
+- **Budget:** Sort by amount (Largest first / Smallest first; with 2+ entries), Rename, Move to folder, Change to Budget / Savings & debts (only while empty), Delete (confirm, then Undo for 6 seconds; deletes its entries)
+- **Undo:** a deleted entry or budget is hidden at once and only deleted on the server after 6 seconds, when another delete starts, or when the app goes to the background (so it isn't lost if iOS closes it). One at a time (`startDelete` in `data.tsx`)
 - **Folder:** Rename, Delete (only allowed when empty; otherwise explain why)
 
 ### Reordering
@@ -153,17 +155,23 @@ Household app: any authenticated user can read/write all records. No public acce
 
 ## Visual tokens (approximate, sampled from screenshots)
 
-| Token | Hex | Use |
-|---|---|---|
-| `brand` | `#4F46B5` | Header bar, chevrons, ⋮ icons |
-| `income` | `#4FB291` | Income text, Add Income button |
-| `expense` | `#EA5A2F` | Expense text, Add Expense button |
-| `action` | `#0079B6` | Add Budget button |
-| `bg` | `#F2F1ED` | Page background |
-| `surface` | `#FFFFFF` | Cards, rows, footer |
-| `text` | `#3A3A3A` | Budget and folder names |
-| `muted` | `#8C8C8C` | Labels, notes, zero balances |
-| `folder` | `#C9C4EE` | Folder icon fill |
+The app follows the phone's light or dark mode (`prefers-color-scheme`). Tokens are redefined for dark in `index.css`; never hard-code a colour.
+
+| Token | Light | Dark | Use |
+|---|---|---|---|
+| `brand` | `#4F46B5` | `#9D96F5` | Chevrons, ⋮ icons, links, outlines, filled brand buttons |
+| `bar` | `#4F46B5` | `#2F2A6E` | Header bar and status bar |
+| `income` | `#4FB291` | `#5FCAA4` | Income text, Add Income button |
+| `expense` | `#EA5A2F` | `#FF7B4F` | Expense text, Add Expense button |
+| `action` | `#0079B6` | `#45AEE8` | Add Budget button |
+| `bg` | `#F2F1ED` | `#16171B` | Page background |
+| `surface` | `#FFFFFF` | `#25272D` | Cards, rows, footer |
+| `text` | `#3A3A3A` | `#ECEBF3` | Budget and folder names |
+| `muted` | `#8C8C8C` | `#9A9AA6` | Labels, notes, zero balances |
+| `folder` | `#C9C4EE` | `#4A4490` | Folder icon fill, keypad operator keys |
+| `line` | 10% black | 10% white | Row dividers and borders |
+
+- Coloured buttons use `button-fill` with `[--fill:var(--color-…)]`: solid with white text in light mode, outlined in dark mode (as Fudget does)
 
 - Font: system UI stack (`-apple-system, …`)
 - Large, readable numbers. Entry rows compact (about 54px); budget and folder cards roomier (about 68px)
@@ -174,7 +182,7 @@ Household app: any authenticated user can read/write all records. No public acce
 
 ## Out of scope for Phase 1 (do NOT build yet)
 
-Bottom tab bar (Starred / Settings / Account) · stars / repeating entries · paid status and Paid balance · partials · dates on budget entries (only savings & debts history has dates) · charts (including of savings & debts history) · search · other sorting options (sorting by name, or a lasting sort mode) · CSV export / print · copy / move entries between budgets · carry-over balances · passcode / Face ID lock · themes / dark mode · multiple currencies · reminders · importing Fudget data.
+Bottom tab bar (Starred / Settings / Account) · stars / repeating entries · paid status and Paid balance · partials · dates on budget entries (only savings & debts history has dates) · charts (including of savings & debts history) · search · other sorting options (sorting by name, or a lasting sort mode) · CSV export / print · copy / move entries between budgets · carry-over balances · passcode / Face ID lock · themes beyond following the phone's light/dark mode · multiple currencies · reminders · importing Fudget data.
 
 These are candidates for later phases. Structure the code so they can be added without rewrites.
 
@@ -217,13 +225,14 @@ These are candidates for later phases. Structure the code so they can be added w
 - Bind Vite to `0.0.0.0` so the app can be tested on an iPhone over the LAN
 - iOS home-screen app: the screen-edge colours and the blur under the status bar are controlled by WebKit, which looks for a fixed, full-width, opaque element at each edge. `web/src/components/EdgeBars.tsx` provides them; don't remove them or make them translucent. The page itself is pinned (`body` fixed) and only each screen's `<main>` scrolls. Neither can be checked in a desktop browser or headless Chromium, only on the phone
 - Define the schema in **migrations** (`pb_migrations/`), never only by clicking in the admin UI
-- Unit test `money.ts`: formatting, signs, zero handling, totals and sums typed on the keypad
+- Unit test `money.ts`: formatting, signs, zero handling, totals and sums typed on the keypad (`npm test`)
+- End-to-end tests in `web/e2e/` (`npm run e2e`, after `./pocketbase/install.sh`): the built app against a throwaway PocketBase with the real migrations, in an iPhone-sized Chromium, covering the main journeys (keypad sums, editing in place, undo, reordering and sorting, savings & debts with links and Catch Up, the pinned layout, dark mode). Add a test with each feature
 
 ## Deployment
 
 Pull-based: nothing on the LAN accepts inbound connections from outside.
 
-1. Push to `main` runs `.github/workflows/build.yml`: web tests, then a `linux/amd64` image pushed to `ghcr.io/petheridge/budget-app`, tagged `latest` and the full commit SHA. Manual runs on other branches test but don't publish.
+1. Push to `main` runs `.github/workflows/build.yml`: unit and end-to-end tests, then a `linux/amd64` image pushed to `ghcr.io/petheridge/budget-app`, tagged `latest` and the full commit SHA. Pull requests and manual runs on other branches test but don't publish.
 2. On the host, cron runs `deploy/update.sh` every 5 minutes, which pulls and restarts if the image changed. `deploy/backup.sh` runs nightly, briefly stopping the app to copy `pb_data/` consistently to the NAS and keeping 14 copies.
 3. To roll back, set `IMAGE_TAG=<sha>` in the host's `.env`, which also stops automatic updates until it's removed.
 

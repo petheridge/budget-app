@@ -27,7 +27,7 @@ export function HistorySheet({ entry, onClose }: { entry: Entry; onClose: () => 
               return (
                 <li
                   key={snapshot.id}
-                  className="flex items-center justify-between gap-3 border-b border-black/10 px-4 py-3 last:border-b-0"
+                  className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 last:border-b-0"
                 >
                   <span className="text-text">{formatDay(snapshot.created, true)}</span>
                   <span className="text-right">

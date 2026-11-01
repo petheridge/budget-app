@@ -50,7 +50,7 @@ export function BudgetMenu({
     return (
       <ConfirmSheet
         title={`Delete "${budget.name}"?`}
-        message="This also deletes all of its entries, and can't be undone."
+        message="This also deletes all of its entries. You can undo it for a few seconds."
         confirmLabel="Delete Budget"
         onConfirm={() => {
           onBeforeDelete?.()

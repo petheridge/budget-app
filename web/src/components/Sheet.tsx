@@ -94,7 +94,7 @@ export function ConfirmSheet({
         <button
           type="button"
           onClick={onConfirm}
-          className="rounded-xl bg-expense py-3.5 font-bold text-white"
+          className="rounded-xl button-fill [--fill:var(--color-expense)] py-3.5 font-bold"
         >
           {confirmLabel}
         </button>
@@ -123,7 +123,7 @@ export function NoticeSheet({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-xl bg-action py-3.5 font-bold text-white"
+          className="rounded-xl button-fill [--fill:var(--color-action)] py-3.5 font-bold"
         >
           OK
         </button>
@@ -169,7 +169,7 @@ export function FormSheet({
   return (
     <SheetFrame label={title} onClose={onClose}>
       <form onSubmit={submit} noValidate>
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center border-b border-black/10 bg-surface px-4 py-3">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center border-b border-line bg-surface px-4 py-3">
           <button type="button" onClick={onClose} className="justify-self-start text-muted">
             Cancel
           </button>
@@ -189,7 +189,7 @@ export function FormSheet({
 }
 
 export const inputClass =
-  'mt-1 w-full rounded-xl border border-black/10 bg-surface px-3 py-3 text-base text-text'
+  'mt-1 w-full rounded-xl border border-line bg-surface px-3 py-3 text-base text-text'
 
 export function FolderSelect({
   label,

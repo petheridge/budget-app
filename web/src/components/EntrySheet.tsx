@@ -65,7 +65,7 @@ export function EntrySheet({
       </label>
       <div className="text-sm text-muted">
         {amountLabel}
-        <div className="mt-1 flex items-center rounded-xl border border-black/10 bg-surface pl-3">
+        <div className="mt-1 flex items-center rounded-xl border border-line bg-surface pl-3">
           <span className="text-base text-text">£</span>
           <AmountField
             label={amountLabel}

@@ -95,7 +95,7 @@ export function DraftEntryRow({
   const labels = entryTypeLabels[type]
 
   return (
-    <div ref={rowRef} className="flex min-h-[54px] items-stretch border-b border-black/10 bg-surface">
+    <div ref={rowRef} className="flex min-h-[54px] items-stretch border-b border-line bg-surface">
       <div className="flex min-w-0 flex-1 flex-col justify-center py-1.5 pr-2 pl-4">
         <div className="flex items-center gap-2">
           <input
@@ -138,7 +138,7 @@ export function DraftEntryRow({
         type="button"
         aria-label="Cancel"
         onClick={onDone}
-        className="my-3 flex w-10 shrink-0 items-center justify-center border-l border-black/10 text-xl text-muted"
+        className="my-3 flex w-10 shrink-0 items-center justify-center border-l border-line text-xl text-muted"
       >
         ×
       </button>

@@ -4,7 +4,9 @@
 @custom-variant standalone (@media (display-mode: standalone));
 
 @theme {
+  /* Light colours. Dark ones, used when the phone is in dark mode, are below. */
   --color-brand: #4f46b5;
+  --color-bar: #4f46b5;
   --color-income: #4fb291;
   --color-expense: #ea5a2f;
   --color-action: #0079b6;
@@ -13,7 +15,51 @@
   --color-text: #3a3a3a;
   --color-muted: #8c8c8c;
   --color-folder: #c9c4ee;
+  --color-line: rgb(0 0 0 / 0.1);
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/*
+ * Dark mode follows the phone's setting. `brand` is for text, icons and outlines,
+ * so it's lighter here to stay readable on dark rows; `bar` is the header and
+ * status bar, a deep indigo. Income and expense are brightened for dark rows.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-brand: #9d96f5;
+    --color-bar: #2f2a6e;
+    --color-income: #5fcaa4;
+    --color-expense: #ff7b4f;
+    --color-action: #45aee8;
+    --color-bg: #16171b;
+    --color-surface: #25272d;
+    --color-text: #ecebf3;
+    --color-muted: #9a9aa6;
+    --color-folder: #4a4490;
+    --color-line: rgb(255 255 255 / 0.1);
+  }
+}
+
+:root {
+  /* Native controls (selects, inputs) follow the same mode. */
+  color-scheme: light dark;
+}
+
+/*
+ * Filled buttons: solid with white text in light mode, outlined in dark mode
+ * (as Fudget does), where white on a brightened colour would be hard to read.
+ * Each button sets its colour with [--fill:var(--color-…)].
+ */
+.button-fill {
+  background-color: var(--fill);
+  color: #fff;
+}
+@media (prefers-color-scheme: dark) {
+  .button-fill {
+    background-color: transparent;
+    color: var(--fill);
+    box-shadow: inset 0 0 0 2px var(--fill);
+  }
 }
 
 /*
@@ -22,7 +68,7 @@
  * and footer. iOS treats <html> as the root scroller, so overscroll-behavior
  * must be set there as well as on body.
  *
- * The html/body background is brand: it is what iOS shows at the top edge if
+ * The html/body background is the bar colour: it is what iOS shows at the top edge if
  * it finds no edge bar (see components/EdgeBars.tsx).
  */
 html,
@@ -30,7 +76,7 @@ body {
   height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
-  background-color: var(--color-brand);
+  background-color: var(--color-bar);
 }
 
 body {

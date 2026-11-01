@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { BudgetMenu } from '../components/BudgetMenu'
 import { EntryMenu } from '../components/EntryMenu'
 import { InlineAmount } from '../components/InlineAmount'
+import { InlineName } from '../components/InlineName'
 import { DraftEntryRow } from '../components/DraftEntryRow'
 import { Header, HeaderButton } from '../components/Header'
 import { DotsIcon, MenuIcon, PencilIcon } from '../components/icons'
@@ -68,10 +69,10 @@ export function BudgetDetail() {
           {(entry) => {
             const colour = typeColour(entry.type)
             return (
-              <div className="flex min-h-[54px] items-stretch border-b border-black/10 bg-surface">
+              <div className="flex min-h-[54px] items-stretch border-b border-line bg-surface">
                 <div className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-2 pl-4">
                   <div className="min-w-0 flex-1">
-                    <p className={`font-semibold break-words ${colour}`}>{entry.name}</p>
+                    <InlineName entry={entry} className={`font-semibold ${colour}`} />
                     {entry.note && (
                       <p className="mt-0.5 flex items-start gap-1 text-xs break-words text-muted">
                         <PencilIcon />
@@ -94,7 +95,7 @@ export function BudgetDetail() {
                   type="button"
                   aria-label={`Options for ${entry.name}`}
                   onClick={() => setSheet({ kind: 'entryMenu', id: entry.id })}
-                  className="my-3 flex w-10 shrink-0 items-center justify-center border-l border-black/10 text-brand"
+                  className="my-3 flex w-10 shrink-0 items-center justify-center border-l border-line text-brand"
                 >
                   <DotsIcon />
                 </button>
@@ -117,14 +118,14 @@ export function BudgetDetail() {
           <button
             type="button"
             onClick={() => startDraft('income')}
-            className="rounded-xl bg-income py-3.5 font-bold text-white"
+            className="rounded-xl button-fill [--fill:var(--color-income)] py-3.5 font-bold"
           >
             Add Income
           </button>
           <button
             type="button"
             onClick={() => startDraft('expense')}
-            className="rounded-xl bg-expense py-3.5 font-bold text-white"
+            className="rounded-xl button-fill [--fill:var(--color-expense)] py-3.5 font-bold"
           >
             Add Expense
           </button>
@@ -140,7 +141,7 @@ export function BudgetDetail() {
               {formatSigned(-expenseTotal(rows))}
             </dd>
           </dl>
-          <div className="border-l border-black/10 pl-3 text-right">
+          <div className="border-l border-line pl-3 text-right">
             <p className="text-sm text-muted">Balance</p>
             <p className={`text-2xl font-bold whitespace-nowrap ${balanceColour(total)}`}>
               {formatSigned(total)}

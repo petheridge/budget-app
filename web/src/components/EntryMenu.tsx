@@ -5,11 +5,11 @@ import { linkTarget } from '../lib/selectors'
 import { EntrySheet } from './EntrySheet'
 import { HistorySheet } from './HistorySheet'
 import { LinkSheet } from './LinkSheet'
-import { ActionSheet, ConfirmSheet } from './Sheet'
+import { ActionSheet } from './Sheet'
 
 export function EntryMenu({ entry, onClose }: { entry: Entry; onClose: () => void }) {
   const { deleteEntry, entries, budgets } = useData()
-  const [step, setStep] = useState<'menu' | 'edit' | 'delete' | 'history' | 'link'>('menu')
+  const [step, setStep] = useState<'menu' | 'edit' | 'history' | 'link'>('menu')
   const tracked = entry.type === 'saving' || entry.type === 'debt'
 
   if (step === 'edit') {
@@ -17,20 +17,6 @@ export function EntryMenu({ entry, onClose }: { entry: Entry; onClose: () => voi
   }
   if (step === 'history') return <HistorySheet entry={entry} onClose={onClose} />
   if (step === 'link') return <LinkSheet entry={entry} onClose={onClose} />
-  if (step === 'delete') {
-    return (
-      <ConfirmSheet
-        title={`Delete "${entry.name}"?`}
-        message={tracked ? 'This also deletes its history, and can\'t be undone.' : "This can't be undone."}
-        confirmLabel="Delete Entry"
-        onConfirm={() => {
-          deleteEntry(entry.id)
-          onClose()
-        }}
-        onClose={onClose}
-      />
-    )
-  }
   return (
     <ActionSheet
       title={entry.name}
@@ -47,7 +33,15 @@ export function EntryMenu({ entry, onClose }: { entry: Entry; onClose: () => voi
             ]
           : []),
         { label: 'Edit', onClick: () => setStep('edit') },
-        { label: 'Delete', danger: true, onClick: () => setStep('delete') },
+        // No confirm step: the delete can be undone for a few seconds.
+        {
+          label: 'Delete',
+          danger: true,
+          onClick: () => {
+            deleteEntry(entry.id)
+            onClose()
+          },
+        },
       ]}
     />
   )

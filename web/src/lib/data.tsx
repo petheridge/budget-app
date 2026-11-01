@@ -42,6 +42,14 @@ function useRecords<T extends Stored>(
     setRecords((current) => current.filter((r) => r.id !== id))
   }, [])
 
+  const dropWhere = useCallback((test: (record: T) => boolean) => {
+    setRecords((current) => current.filter((r) => !test(r)))
+  }, [])
+
+  const updateWhere = useCallback((test: (record: T) => boolean, change: (record: T) => T) => {
+    setRecords((current) => current.map((r) => (test(r) ? change(r) : r)))
+  }, [])
+
   useEffect(() => {
     const subscription = service.subscribe('*', ({ action, record }) => {
       if (action === 'delete') drop(record.id)
@@ -66,7 +74,7 @@ function useRecords<T extends Stored>(
     [records, service, order],
   )
 
-  return { records, service, load, upsert, drop, applySortOrders }
+  return { records, service, load, upsert, drop, dropWhere, updateWhere, applySortOrders }
 }
 
 export interface EntryFields {
@@ -86,6 +94,15 @@ function useStore() {
   const snapshots = useRecords<Snapshot>('snapshots', false)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [problem, setProblem] = useState('')
+
+  /**
+   * Deletes wait a few seconds so they can be undone: the item is hidden at once,
+   * and only deleted for real when the time is up, another delete starts, or the
+   * app goes to the background. One at a time.
+   */
+  const pendingDelete = useRef<{ kind: 'entry' | 'budget'; id: string; timer: number } | null>(null)
+  const [hiddenId, setHiddenId] = useState<string | null>(null)
+  const [undoLabel, setUndoLabel] = useState('')
 
   const loadFolders = folders.load
   const loadBudgets = budgets.load
@@ -128,6 +145,49 @@ function useStore() {
     snapshots.upsert(await snapshots.service.create({ entry, amount_pence }))
   }
 
+  const commitDelete = () => {
+    const pending = pendingDelete.current
+    if (!pending) return
+    window.clearTimeout(pending.timer)
+    pendingDelete.current = null
+    const { kind, id } = pending
+    if (kind === 'entry') {
+      entries.drop(id)
+      // The server deletes its snapshots too, and clears any links to it.
+      snapshots.dropWhere((s) => s.entry === id)
+      entries.updateWhere((e) => e.link === id, (e) => ({ ...e, link: '' }))
+      guard('delete the entry', entries.service.delete(id))
+    } else {
+      budgets.drop(id)
+      guard('delete the budget', budgets.service.delete(id))
+    }
+    setHiddenId(null)
+    setUndoLabel('')
+  }
+  const commitRef = useRef(commitDelete)
+  commitRef.current = commitDelete
+
+  const startDelete = (kind: 'entry' | 'budget', id: string, label: string) => {
+    commitDelete()
+    pendingDelete.current = { kind, id, timer: window.setTimeout(() => commitRef.current(), UNDO_SECONDS * 1000) }
+    setHiddenId(id)
+    setUndoLabel(label)
+  }
+
+  // Leaving the app makes a waiting delete final, so it isn't lost if iOS closes the app.
+  useEffect(() => {
+    const flush = () => {
+      if (document.visibilityState === 'hidden') commitRef.current()
+    }
+    const flushNow = () => commitRef.current()
+    document.addEventListener('visibilitychange', flush)
+    window.addEventListener('pagehide', flushNow)
+    return () => {
+      document.removeEventListener('visibilitychange', flush)
+      window.removeEventListener('pagehide', flushNow)
+    }
+  }, [])
+
   /** For changes already shown on screen: if the save fails, say so and restore the real state. */
   const guard = (action: string, write: Promise<unknown>) => {
     write.catch(() => {
@@ -138,12 +198,23 @@ function useStore() {
 
   return {
     folders: folders.records,
-    budgets: budgets.records,
-    entries: entries.records,
+    // An item waiting to be deleted is hidden everywhere until it's undone or gone.
+    budgets: budgets.records.filter((b) => b.id !== hiddenId),
+    entries: entries.records.filter((e) => e.id !== hiddenId),
     snapshots: snapshots.records,
     status,
     problem,
     clearProblem: () => setProblem(''),
+    /** "Deleted …" while a delete can still be undone, else ''. */
+    undoLabel,
+    undoDelete() {
+      const pending = pendingDelete.current
+      if (!pending) return
+      window.clearTimeout(pending.timer)
+      pendingDelete.current = null
+      setHiddenId(null)
+      setUndoLabel('')
+    },
     refresh,
 
     async createFolder(name: string, parent: string) {
@@ -156,6 +227,7 @@ function useStore() {
       folders.upsert(await folders.service.update(id, { name }))
     },
     deleteFolder(id: string) {
+      commitDelete()
       folders.drop(id)
       guard('delete the folder', folders.service.delete(id))
     },
@@ -180,8 +252,10 @@ function useStore() {
       )
     },
     deleteBudget(id: string) {
-      budgets.drop(id)
-      guard('delete the budget', budgets.service.delete(id))
+      const budget = budgets.records.find((b) => b.id === id)
+      const count = entries.records.filter((e) => e.budget === id).length
+      const what = count === 0 ? '' : count === 1 ? ' and its entry' : ` and its ${count} entries`
+      startDelete('budget', id, `Deleted “${budget?.name ?? 'budget'}”${what}`)
     },
 
     async createEntry(budget: string, fields: EntryFields) {
@@ -207,11 +281,8 @@ function useStore() {
       entries.upsert(await entries.service.update(id, { link }))
     },
     deleteEntry(id: string) {
-      entries.drop(id)
-      // The server deletes its snapshots too, and clears any links to it.
-      for (const s of snapshots.records) if (s.entry === id) snapshots.drop(s.id)
-      for (const e of entries.records) if (e.link === id) entries.upsert({ ...e, link: '' })
-      guard('delete the entry', entries.service.delete(id))
+      const entry = entries.records.find((e) => e.id === id)
+      startDelete('entry', id, `Deleted “${entry?.name ?? 'entry'}”`)
     },
     /**
      * Monthly catch-up: records today's value for every item in a savings &
@@ -248,6 +319,9 @@ function useStore() {
     },
   }
 }
+
+/** How long a delete can be undone. */
+export const UNDO_SECONDS = 6
 
 const DataContext = createContext<ReturnType<typeof useStore> | null>(null)
 

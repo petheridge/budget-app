@@ -98,7 +98,7 @@ export function BudgetList() {
           <button
             type="button"
             onClick={() => setSheet({ kind: 'addBudget' })}
-            className="w-full rounded-xl bg-action py-3.5 font-bold text-white"
+            className="w-full rounded-xl button-fill [--fill:var(--color-action)] py-3.5 font-bold"
           >
             Add Budget
           </button>
@@ -175,7 +175,7 @@ function CardRow({
         type="button"
         aria-label={`Options for ${card.record.name}`}
         onClick={onMenu}
-        className="my-3 flex w-10 shrink-0 items-center justify-center border-l border-black/10 text-brand"
+        className="my-3 flex w-10 shrink-0 items-center justify-center border-l border-line text-brand"
       >
         <DotsIcon />
       </button>

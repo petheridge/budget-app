@@ -31,6 +31,8 @@ export default defineConfig({
       },
     }),
   ],
+  // Unit tests only; the end-to-end tests in e2e/ run under Playwright.
+  test: { include: ['src/**/*.test.ts'] },
   server: {
     host: '0.0.0.0',
     proxy: {

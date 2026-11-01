@@ -78,7 +78,7 @@ export function CatchUp() {
             const expected = expectedValue(entry, entries, budgets, snapshots, now)
             const colour = typeColour(entry.type)
             return (
-              <li key={entry.id} className="border-b border-black/10 bg-surface first:border-t">
+              <li key={entry.id} className="border-b border-line bg-surface first:border-t">
                 <div className="flex min-h-[68px] items-center gap-3 px-4 py-2">
                   <span className="min-w-0 flex-1">
                     <span className={`block font-semibold break-words ${colour}`}>{entry.name}</span>
@@ -132,7 +132,7 @@ export function CatchUp() {
           <button
             type="submit"
             disabled={busy}
-            className="w-full rounded-xl bg-brand py-3.5 font-bold text-white disabled:opacity-60"
+            className="w-full rounded-xl button-fill [--fill:var(--color-brand)] py-3.5 font-bold disabled:opacity-60"
           >
             Save Catch-Up
           </button>
