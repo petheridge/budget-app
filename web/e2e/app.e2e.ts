@@ -123,7 +123,7 @@ test('press and hold to reorder, and sort by amount', async ({ page }) => {
   await expect.poll(() => rowNames(page)).toEqual(['Salary', 'Mortgage', 'Water'])
 })
 
-test('savings & debts: link a payment, catch up and see the history', async ({ page }) => {
+test('savings & debts: link a payment, update values and see the history', async ({ page }) => {
   const worth = unique('Net worth')
   const allBudgetsBalance = await page.locator('footer').innerText()
   await addBudget(page, worth, 'Savings & debts')
@@ -146,13 +146,14 @@ test('savings & debts: link a payment, catch up and see the history', async ({ p
   await page.getByRole('link', { name: new RegExp(worth) }).tap()
   await expect(page.locator('main')).toContainText('£ 250.00 a month from')
 
-  await page.getByRole('link', { name: 'Catch Up' }).tap()
-  await page.getByRole('button', { name: 'Cash ISA value' }).tap()
+  // Values are updated by tapping them; there's no separate catch-up page.
+  await expect(page.getByRole('link', { name: 'Catch Up' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Cash ISA current value' }).tap()
   await pressKeys(page, 'plus', '2', '5', '0')
-  await keypad(page).getByRole('button', { name: 'Next' }).tap()
+  await keypad(page).getByRole('button', { name: 'Done' }).tap()
+  await page.getByRole('button', { name: 'Mortgage amount owed' }).tap()
   await pressKeys(page, 'minus', '4', '5', '0')
   await keypad(page).getByRole('button', { name: 'Done' }).tap()
-  await page.getByRole('button', { name: 'Save Catch-Up' }).tap()
 
   await expect(page.locator('main')).toContainText('£ 12,650.00')
   await expect(page.locator('main')).toContainText('▲ £ 250.00 since')
@@ -161,6 +162,30 @@ test('savings & debts: link a payment, catch up and see the history', async ({ p
   await page.getByRole('button', { name: 'History' }).tap()
   await expect(page.getByRole('dialog')).toContainText('£ 180,000.00')
   await expect(page.getByRole('dialog')).toContainText('£ 179,550.00')
+})
+
+test('hides the balance where there are only savings & debts budgets', async ({ page }) => {
+  const folder = unique('Investments')
+  await page.getByRole('button', { name: 'Add folder' }).tap()
+  await page.getByLabel('Name').fill(folder)
+  await page.getByRole('button', { name: 'Save' }).tap()
+  await page.getByRole('link', { name: new RegExp(folder) }).tap()
+  const balance = page.locator('footer').getByText('Folder Balance:')
+
+  // Empty, then only savings & debts: nothing to total.
+  await expect(page.getByRole('button', { name: 'Add Budget' })).toBeVisible()
+  await expect(balance).toHaveCount(0)
+  await addBudget(page, unique('Pensions'), 'Savings & debts')
+  await page.getByRole('link', { name: new RegExp(folder) }).tap()
+  await expect(page.getByRole('button', { name: 'Add Budget' })).toBeVisible()
+  await expect(balance).toHaveCount(0)
+
+  // A regular budget brings it back.
+  await addBudget(page, unique('Fund'))
+  await addRow(page, 'Add Income', 'Top-up', '5', '0')
+  await page.getByRole('link', { name: new RegExp(folder) }).tap()
+  await expect(balance).toBeVisible()
+  await expect(page.locator('footer')).toContainText('+ £ 50.00')
 })
 
 test('swipe to delete a value from history, with undo', async ({ page }) => {

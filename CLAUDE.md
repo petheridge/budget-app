@@ -4,7 +4,7 @@ A self-hosted, simplified clone of the **Fudget** iOS budget planner. Runs on a 
 
 **Phase 1 goal:** separate budgets containing income (+) and expense (−) entries, with a clear total. Nothing more. Keep it simple; resist adding features not listed here.
 
-**Added since:** *savings & debts* budgets, which hold things like an ISA or a mortgage as current values recorded over time, with a monthly catch-up (see screen 4). They're the one place the app deals with dates.
+**Added since:** *savings & debts* budgets, which hold things like an ISA or a mortgage as current values recorded over time (see screen 4). They're the one place the app deals with dates.
 
 Use our own app name, icon and styling. Copy Fudget's *behaviour and layout*, not its branding or assets.
 
@@ -54,7 +54,7 @@ Store all money as **integer pence**. Never use floats for amounts. Totals are *
 - `entry` — relation → `entries`, required, cascade delete
 - `amount_pence` — number (integer, positive): the value at the time
 - `created` — the date it was recorded
-- Written whenever a saving's or debt's value is set: when it's added, when an edit changes the amount, and for every item at each catch-up (unchanged ones too). The latest snapshot matches the entry's `amount_pence`
+- Written whenever a saving's or debt's value is set: when it's added, and whenever its amount changes (tapping the value, or Edit). The latest snapshot matches the entry's `amount_pence`
 - Can be deleted from History (swipe left). Deleting the newest also sets the entry's `amount_pence` back to the one before it, saved directly so no new snapshot is written. An entry's only snapshot can't be deleted
 
 ### Access rules
@@ -70,7 +70,6 @@ Household app: any authenticated user can read/write all records. No public acce
 - **Folder Balance** (shown inside a folder) = sum of balances of budgets *directly* in that folder
 - **All Budgets Balance** (root screen) = sum of balances of budgets at *root level only*. Budgets inside folders are **not** included. This matches observed Fudget behaviour.
 - **Net worth** (savings & debts budget) = its savings minus its debts. It shows on that budget's card (in brand colour) but is **never** included in Folder Balance or All Budgets Balance, which are about monthly money in and out
-- **Expected value** of a saving or debt (a Catch Up suggestion, never stored) = its current value plus (saving) or minus (debt, not below £0) the sum of the budget expenses linked to it, once for each calendar month since its last recorded value. None when nothing is linked or no month has passed (`expectedValue` in `selectors.ts`)
 - **Change since last** for a saving or debt = its current value minus the snapshot before the latest one. A saving going up or a debt going down is shown green (good); the opposite red-orange
 
 ---
@@ -91,7 +90,7 @@ Household app: any authenticated user can read/write all records. No public acce
 
 **Bottom (pinned):**
 - Full-width blue **Add Budget** button
-- Footer row: "All Budgets Balance:" (root) or "Folder Balance:" (in a folder), with a large coloured total on the right
+- Footer row: "All Budgets Balance:" (root) or "Folder Balance:" (in a folder), with a large coloured total on the right. Only shown when that level has at least one regular budget: savings & debts aren't counted, so otherwise there's nothing to total
 
 ### 2. Budget detail
 
@@ -117,7 +116,7 @@ Household app: any authenticated user can read/write all records. No public acce
 - Also use a simple sheet to add or rename a budget or folder (name only, plus the folder to put it in).
 
 ### Amount keypad
-- Every amount (inline add, tapping an amount in a list, Edit sheet, Catch Up) opens the app's own keypad, not the iPhone keyboard, so amounts can be sums: digits, `.`, ⌫, + − × ÷ and a full-width Done (Save on an inline row, Next on Catch Up until the last item)
+- Every amount (inline add, tapping an amount in a list, Edit sheet) opens the app's own keypad, not the iPhone keyboard, so amounts can be sums: digits, `.`, ⌫, + − × ÷ and a full-width Done (Save on an inline row)
 - A line above the keys shows the sum and its result ("576 ÷ 12   = £ 48.00"), or what's wrong ("Can't be less than £ 0.00"), and Done then stays open
 - With a value already there, a digit replaces it and an operator carries on from it: "+ 250" adds to the current value
 - × and ÷ come before + and −. In each part of a sum the first number is money (up to 2 decimal places) and multipliers and divisors are plain numbers. Each part is rounded to the penny, all in integer pence (`evaluateAmount` in `money.ts`, unit tested). Only the result is stored, not the sum
@@ -127,9 +126,9 @@ Household app: any authenticated user can read/write all records. No public acce
 ### 4. Savings & debts budget
 - Chosen when adding a budget ("Budget" or "Savings & debts"), or from the ⋮ menu while a budget is empty
 - Same header and row layout as a budget. Each row: name and current value in the type colour (savings green, debts red-orange), and under the value a small "▲ £ 250.00 since 1 Oct" (or "No change since…"). Tapping the value opens the keypad to change it in place (recorded in history); tapping the name renames it. **History** (from ⋮) lists every recorded value with its date and change, newest first. **Swipe a value left** to show a red Delete button (as in iOS lists; a mostly vertical move scrolls instead, and tapping the open row closes it). Deleting has Undo; deleting the newest value puts the current value back to the one before; the only value can't be deleted
-- Bottom: **Add Saving** (green), **Add Debt** (red-orange), **Catch Up** (brand). Adding works inline, as for entries. Footer: Savings, Debts and a large **Net worth**
-- **Linking:** a budget expense's ⋮ has **Link to saving or debt** (then **Change link**), choosing from every savings & debts item. The expense shows "→ Cash ISA" under its name; the saving or debt shows "£ 250.00 a month from Household" under its name. Expected values are suggestions only: nothing changes until Catch Up is saved, because a budget is a plan, not a record of payments
-- **Catch Up** opens a full page (not a sheet) listing every item with its current value filled in, or its **expected value** if it has linked payments (with "Expected: + £ 250.00 a month" under it). Tap a value to change it with the keypad (start with + or − to add or take away; Next moves down the list); Save records today's value for every item. A blank value keeps the current one
+- Bottom: **Add Saving** (green), **Add Debt** (red-orange). Adding works inline, as for entries. Footer: Savings, Debts and a large **Net worth**
+- **Linking:** a budget expense's ⋮ has **Link to saving or debt** (then **Change link**), choosing from every savings & debts item. The expense shows "→ Cash ISA" under its name; the saving or debt shows "£ 250.00 a month from Household" under its name. Links are labels only: they never change a value (a budget is a plan, not a record of payments)
+- Values are updated by tapping them (no separate catch-up page: it was removed as not adding enough). Each change is kept in History
 - Debts are entered as positive amounts owed
 
 ### ⋮ menus
@@ -187,8 +186,6 @@ Bottom tab bar (Starred / Settings / Account) · stars / repeating entries · pa
 
 These are candidates for later phases. Structure the code so they can be added without rewrites.
 
-**Next planned (stage 2 of linking):** an interest rate on savings and debts (stored as basis points, an integer) and a term or end date on debts, so expected values include interest and debts show a projected payoff date. Still suggestions, confirmed at Catch Up.
-
 ---
 
 ## Repo layout (target)
@@ -210,7 +207,7 @@ These are candidates for later phases. Structure the code so they can be added w
         ├── lib/pb.ts       # PocketBase client
         ├── lib/money.ts    # pence <-> display formatting, sum helpers (unit tested)
         ├── components/
-        └── routes/         # / , /folder/:id , /budget/:id , /budget/:id/catch-up
+        └── routes/         # / , /folder/:id , /budget/:id
 ```
 
 ## Development
@@ -227,7 +224,7 @@ These are candidates for later phases. Structure the code so they can be added w
 - iOS home-screen app: the screen-edge colours and the blur under the status bar are controlled by WebKit, which looks for a fixed, full-width, opaque element at each edge. `web/src/components/EdgeBars.tsx` provides them; don't remove them or make them translucent. The page itself is pinned (`body` fixed) and only each screen's `<main>` scrolls. Neither can be checked in a desktop browser or headless Chromium, only on the phone
 - Define the schema in **migrations** (`pb_migrations/`), never only by clicking in the admin UI
 - Unit test `money.ts`: formatting, signs, zero handling, totals and sums typed on the keypad (`npm test`)
-- End-to-end tests in `web/e2e/` (`npm run e2e`, after `./pocketbase/install.sh`): the built app against a throwaway PocketBase with the real migrations, in an iPhone-sized Chromium, covering the main journeys (keypad sums, editing in place, undo, reordering and sorting, savings & debts with links and Catch Up, the pinned layout, dark mode). Add a test with each feature
+- End-to-end tests in `web/e2e/` (`npm run e2e`, after `./pocketbase/install.sh`): the built app against a throwaway PocketBase with the real migrations, in an iPhone-sized Chromium, covering the main journeys (keypad sums, editing in place, undo, reordering and sorting, savings & debts with links and history, hiding the balance, the pinned layout, dark mode). Add a test with each feature
 
 ## Deployment
 

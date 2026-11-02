@@ -37,6 +37,8 @@ export function BudgetList() {
   const parent = folders.find((f) => f.id === folder?.parent)
   const cards = cardsIn(folders, budgets, folderId)
   const total = levelBalance(budgets, entries, folderId)
+  // Savings & debts aren't in the balance, so with no regular budget here there's nothing to show.
+  const showBalance = budgets.some((b) => b.folder === folderId && !isTracker(b))
   const openCard = sheet?.kind === 'cardMenu' ? cards.find((c) => c.key === sheet.key) : undefined
 
   return (
@@ -94,7 +96,7 @@ export function BudgetList() {
       </main>
 
       <footer className="shrink-0 bg-surface pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_4px_rgba(0,0,0,0.08)]">
-        <div className="p-3 pb-2">
+        <div className={showBalance ? 'p-3 pb-2' : 'p-3'}>
           <button
             type="button"
             onClick={() => setSheet({ kind: 'addBudget' })}
@@ -103,12 +105,14 @@ export function BudgetList() {
             Add Budget
           </button>
         </div>
-        <div className="flex items-center justify-between gap-2 px-4 pb-3">
-          <span className="text-muted">{folder ? 'Folder Balance:' : 'All Budgets Balance:'}</span>
-          <span className={`text-2xl font-bold whitespace-nowrap ${balanceColour(total)}`}>
-            {formatSigned(total)}
-          </span>
-        </div>
+        {showBalance && (
+          <div className="flex items-center justify-between gap-2 px-4 pb-3">
+            <span className="text-muted">{folder ? 'Folder Balance:' : 'All Budgets Balance:'}</span>
+            <span className={`text-2xl font-bold whitespace-nowrap ${balanceColour(total)}`}>
+              {formatSigned(total)}
+            </span>
+          </div>
+        )}
       </footer>
 
       {sheet?.kind === 'addBudget' && (

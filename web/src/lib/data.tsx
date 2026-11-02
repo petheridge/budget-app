@@ -334,21 +334,6 @@ function useStore() {
       const entry = entries.records.find((e) => e.id === id)
       startDelete('entry', id, `Deleted “${entry?.name ?? 'entry'}”`)
     },
-    /**
-     * Monthly catch-up: records today's value for every item in a savings &
-     * debts budget, changed or not, so each catch-up is complete in the history.
-     */
-    async catchUp(values: Map<string, number>) {
-      await Promise.all(
-        [...values].map(async ([id, amount_pence]) => {
-          const before = entries.records.find((e) => e.id === id)
-          if (before && before.amount_pence !== amount_pence) {
-            entries.upsert(await entries.service.update(id, { amount_pence }))
-          }
-          await record(id, amount_pence)
-        }),
-      )
-    },
 
     reorderCards(cards: Card[]) {
       const orderOf = (kind: Card['kind']) =>
