@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { addBudget, addRow, holdAndDrag, keypad, pressKeys, rowNames, signIn, unique } from './helpers'
+import { addBudget, addRow, holdAndDrag, keypad, pressKeys, rowNames, signIn, swipe, unique } from './helpers'
 
 const undoMessage = (page: Page) => page.getByRole('status').filter({ hasText: 'Deleted' })
 
@@ -161,6 +161,56 @@ test('savings & debts: link a payment, catch up and see the history', async ({ p
   await page.getByRole('button', { name: 'History' }).tap()
   await expect(page.getByRole('dialog')).toContainText('£ 180,000.00')
   await expect(page.getByRole('dialog')).toContainText('£ 179,550.00')
+})
+
+test('swipe to delete a value from history, with undo', async ({ page }) => {
+  const name = unique('Net worth')
+  await addBudget(page, name, 'Savings & debts')
+  await addRow(page, 'Add Saving', 'Cash ISA', '1', '2', '4', '0', '0')
+  await addRow(page, 'Add Saving', 'Bonds', '5', '0', '0', '0')
+  for (const keys of [['plus', '2', '5', '0'], ['plus', '1', '0', '0']]) {
+    await page.getByRole('button', { name: 'Cash ISA current value' }).tap()
+    await pressKeys(page, ...keys)
+    await keypad(page).getByRole('button', { name: 'Done' }).tap()
+  }
+  const isa = page.locator('main li').filter({ hasText: 'Cash ISA' })
+  await expect(isa).toContainText('£ 12,750.00')
+
+  const openHistory = async (item: string) => {
+    await page.getByRole('button', { name: `Options for ${item}` }).tap()
+    await page.getByRole('button', { name: 'History' }).tap()
+  }
+  const history = page.getByRole('dialog')
+  const historyRow = (amount: string) => history.locator('li').filter({ hasText: amount })
+
+  // Deleting the newest value puts the current value back; Undo restores it.
+  await openHistory('Cash ISA')
+  await swipe(page, historyRow('£ 12,750.00'), -120)
+  await history.getByRole('button', { name: /^Delete £ 12,750.00 from/ }).tap()
+  await expect(undoMessage(page)).toContainText('Deleted £ 12,750.00 from')
+  await expect(historyRow('£ 12,750.00')).toHaveCount(0)
+  await expect(isa).toContainText('£ 12,650.00')
+  await page.getByRole('button', { name: 'Undo' }).tap()
+  await expect(historyRow('£ 12,750.00')).toHaveCount(1)
+  await expect(isa).toContainText('£ 12,750.00')
+
+  // Deleting an older value is final once the message goes.
+  await swipe(page, historyRow('£ 12,650.00'), -120)
+  await history.getByRole('button', { name: /^Delete £ 12,650.00 from/ }).tap()
+  await expect(undoMessage(page)).toBeHidden({ timeout: 10_000 })
+  await page.reload()
+  await openHistory('Cash ISA')
+  await expect(history.locator('li')).toHaveCount(2)
+  await expect(history).toContainText('£ 12,750.00')
+  await expect(history).toContainText('£ 12,400.00')
+  await expect(history).not.toContainText('£ 12,650.00')
+  await expect(isa).toContainText('£ 12,750.00')
+  await history.getByRole('button', { name: 'Close' }).tap()
+
+  // An item's only value can't be deleted.
+  await openHistory('Bonds')
+  await swipe(page, history.locator('li').first(), -120)
+  await expect(history.getByRole('button', { name: /^Delete/ })).toHaveCount(0)
 })
 
 test('only the list scrolls; the page itself is pinned', async ({ page }) => {

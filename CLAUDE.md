@@ -55,6 +55,7 @@ Store all money as **integer pence**. Never use floats for amounts. Totals are *
 - `amount_pence` — number (integer, positive): the value at the time
 - `created` — the date it was recorded
 - Written whenever a saving's or debt's value is set: when it's added, when an edit changes the amount, and for every item at each catch-up (unchanged ones too). The latest snapshot matches the entry's `amount_pence`
+- Can be deleted from History (swipe left). Deleting the newest also sets the entry's `amount_pence` back to the one before it, saved directly so no new snapshot is written. An entry's only snapshot can't be deleted
 
 ### Access rules
 Household app: any authenticated user can read/write all records. No public access. Create users via the PocketBase admin UI.
@@ -125,7 +126,7 @@ Household app: any authenticated user can read/write all records. No public acce
 
 ### 4. Savings & debts budget
 - Chosen when adding a budget ("Budget" or "Savings & debts"), or from the ⋮ menu while a budget is empty
-- Same header and row layout as a budget. Each row: name and current value in the type colour (savings green, debts red-orange), and under the value a small "▲ £ 250.00 since 1 Oct" (or "No change since…"). Tapping the value opens the keypad to change it in place (recorded in history); tapping the name renames it. **History** (from ⋮) lists every recorded value with its date and change, newest first
+- Same header and row layout as a budget. Each row: name and current value in the type colour (savings green, debts red-orange), and under the value a small "▲ £ 250.00 since 1 Oct" (or "No change since…"). Tapping the value opens the keypad to change it in place (recorded in history); tapping the name renames it. **History** (from ⋮) lists every recorded value with its date and change, newest first. **Swipe a value left** to show a red Delete button (as in iOS lists; a mostly vertical move scrolls instead, and tapping the open row closes it). Deleting has Undo; deleting the newest value puts the current value back to the one before; the only value can't be deleted
 - Bottom: **Add Saving** (green), **Add Debt** (red-orange), **Catch Up** (brand). Adding works inline, as for entries. Footer: Savings, Debts and a large **Net worth**
 - **Linking:** a budget expense's ⋮ has **Link to saving or debt** (then **Change link**), choosing from every savings & debts item. The expense shows "→ Cash ISA" under its name; the saving or debt shows "£ 250.00 a month from Household" under its name. Expected values are suggestions only: nothing changes until Catch Up is saved, because a budget is a plan, not a record of payments
 - **Catch Up** opens a full page (not a sheet) listing every item with its current value filled in, or its **expected value** if it has linked payments (with "Expected: + £ 250.00 a month" under it). Tap a value to change it with the keypad (start with + or − to add or take away; Next moves down the list); Save records today's value for every item. A blank value keeps the current one
@@ -134,7 +135,7 @@ Household app: any authenticated user can read/write all records. No public acce
 ### ⋮ menus
 - **Entry:** Edit, Delete (no confirm: a "Deleted “Water” · Undo" message shows for 6 seconds). Savings and debts also have History, and deleting one deletes its history. Budget expenses also have Link to saving or debt / Change link (with Remove Link)
 - **Budget:** Sort by amount (Largest first / Smallest first; with 2+ entries), Rename, Move to folder, Change to Budget / Savings & debts (only while empty), Delete (confirm, then Undo for 6 seconds; deletes its entries)
-- **Undo:** a deleted entry or budget is hidden at once and only deleted on the server after 6 seconds, when another delete starts, or when the app goes to the background (so it isn't lost if iOS closes it). One at a time (`startDelete` in `data.tsx`)
+- **Undo:** a deleted entry, budget or history value is hidden at once and only deleted on the server after 6 seconds, when another delete starts, or when the app goes to the background (so it isn't lost if iOS closes it). One at a time (`startDelete` in `data.tsx`)
 - **Folder:** Rename, Delete (only allowed when empty; otherwise explain why)
 
 ### Reordering

@@ -8,9 +8,10 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { EntryType } from './money'
+import { formatUnsigned, type EntryType } from './money'
+import { formatDay } from './dates'
 import { pb, type Budget, type BudgetKind, type Entry, type Folder, type Snapshot } from './pb'
-import { bySortOrder, cardsIn, nextSortOrder, type Card } from './selectors'
+import { bySortOrder, cardsIn, historyOf, nextSortOrder, type Card } from './selectors'
 
 type Stored = RecordModel & { sort_order?: number; created: string }
 
@@ -100,7 +101,13 @@ function useStore() {
    * and only deleted for real when the time is up, another delete starts, or the
    * app goes to the background. One at a time.
    */
-  const pendingDelete = useRef<{ kind: 'entry' | 'budget'; id: string; timer: number } | null>(null)
+  const pendingDelete = useRef<{
+    kind: DeleteKind
+    id: string
+    timer: number
+    /** Deleting a saving's or debt's newest value puts its current value back to the one before. */
+    revert?: { entry: string; to: number; from: number }
+  } | null>(null)
   const [hiddenId, setHiddenId] = useState<string | null>(null)
   const [undoLabel, setUndoLabel] = useState('')
 
@@ -151,7 +158,13 @@ function useStore() {
     window.clearTimeout(pending.timer)
     pendingDelete.current = null
     const { kind, id } = pending
-    if (kind === 'entry') {
+    if (kind === 'snapshot') {
+      snapshots.drop(id)
+      guard('delete the value', snapshots.service.delete(id))
+      // Saved directly, not through updateEntry, so it doesn't record a new value.
+      const revert = pending.revert
+      if (revert) guard('delete the value', entries.service.update(revert.entry, { amount_pence: revert.to }))
+    } else if (kind === 'entry') {
       entries.drop(id)
       // The server deletes its snapshots too, and clears any links to it.
       snapshots.dropWhere((s) => s.entry === id)
@@ -167,9 +180,20 @@ function useStore() {
   const commitRef = useRef(commitDelete)
   commitRef.current = commitDelete
 
-  const startDelete = (kind: 'entry' | 'budget', id: string, label: string) => {
+  const startDelete = (
+    kind: DeleteKind,
+    id: string,
+    label: string,
+    revert?: { entry: string; to: number; from: number },
+  ) => {
     commitDelete()
-    pendingDelete.current = { kind, id, timer: window.setTimeout(() => commitRef.current(), UNDO_SECONDS * 1000) }
+    pendingDelete.current = {
+      kind,
+      id,
+      revert,
+      timer: window.setTimeout(() => commitRef.current(), UNDO_SECONDS * 1000),
+    }
+    if (revert) entries.updateWhere((e) => e.id === revert.entry, (e) => ({ ...e, amount_pence: revert.to }))
     setHiddenId(id)
     setUndoLabel(label)
   }
@@ -201,7 +225,7 @@ function useStore() {
     // An item waiting to be deleted is hidden everywhere until it's undone or gone.
     budgets: budgets.records.filter((b) => b.id !== hiddenId),
     entries: entries.records.filter((e) => e.id !== hiddenId),
-    snapshots: snapshots.records,
+    snapshots: snapshots.records.filter((s) => s.id !== hiddenId),
     status,
     problem,
     clearProblem: () => setProblem(''),
@@ -212,6 +236,8 @@ function useStore() {
       if (!pending) return
       window.clearTimeout(pending.timer)
       pendingDelete.current = null
+      const revert = pending.revert
+      if (revert) entries.updateWhere((e) => e.id === revert.entry, (e) => ({ ...e, amount_pence: revert.from }))
       setHiddenId(null)
       setUndoLabel('')
     },
@@ -280,6 +306,30 @@ function useStore() {
     async setEntryLink(id: string, link: string) {
       entries.upsert(await entries.service.update(id, { link }))
     },
+    /**
+     * Deletes one recorded value of a saving or debt, with Undo. Deleting the newest
+     * puts the item's current value back to the one before it. An item's only
+     * value can't be deleted: it needs one (delete the item instead).
+     */
+    deleteSnapshot(id: string): boolean {
+      const snapshot = snapshots.records.find((s) => s.id === id)
+      if (!snapshot) return false
+      const history = historyOf(
+        snapshots.records.filter((s) => s.id !== hiddenId),
+        snapshot.entry,
+      )
+      if (history.length < 2) return false
+      const entry = entries.records.find((e) => e.id === snapshot.entry)
+      const newest = history[0].id === id
+      const label = `Deleted ${formatUnsigned(snapshot.amount_pence)} from ${formatDay(snapshot.created, true)}`
+      startDelete(
+        'snapshot',
+        id,
+        label,
+        newest && entry ? { entry: entry.id, to: history[1].amount_pence, from: entry.amount_pence } : undefined,
+      )
+      return true
+    },
     deleteEntry(id: string) {
       const entry = entries.records.find((e) => e.id === id)
       startDelete('entry', id, `Deleted “${entry?.name ?? 'entry'}”`)
@@ -319,6 +369,8 @@ function useStore() {
     },
   }
 }
+
+type DeleteKind = 'entry' | 'budget' | 'snapshot'
 
 /** How long a delete can be undone. */
 export const UNDO_SECONDS = 6
