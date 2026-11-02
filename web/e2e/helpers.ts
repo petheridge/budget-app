@@ -67,3 +67,20 @@ export async function holdAndDrag(page: Page, from: Locator, to: Locator) {
   await touch('touchEnd', x, y1)
   await page.waitForTimeout(300)
 }
+
+/** Swipe a row sideways with a real touch (negative dx is to the left), as on an iPhone. */
+export async function swipe(page: Page, row: Locator, dx: number) {
+  const cdp = await page.context().newCDPSession(page)
+  const touch = (type: string, x: number, y: number) =>
+    cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] })
+  const box = (await row.boundingBox())!
+  const x0 = box.x + box.width * 0.7
+  const y = box.y + box.height / 2
+  await touch('touchStart', x0, y)
+  for (let i = 1; i <= 10; i++) {
+    await touch('touchMove', x0 + (dx * i) / 10, y)
+    await page.waitForTimeout(16)
+  }
+  await touch('touchEnd', x0 + dx, y)
+  await page.waitForTimeout(300)
+}

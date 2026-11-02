@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { BudgetMenu } from '../components/BudgetMenu'
 import { ChangeText, formatDay } from '../components/Change'
 import { DraftEntryRow } from '../components/DraftEntryRow'
@@ -119,14 +119,14 @@ export function TrackerDetail({ budget }: { budget: Budget }) {
         )}
         {rows.length === 0 && !draft && (
           <p className="p-8 text-center text-muted">
-            Add your savings and debts, like an ISA or a mortgage, with their current values. Use Catch
-            Up each month to record new values.
+            Add your savings and debts, like an ISA or a mortgage, with their current values. Tap a value
+            to update it; each change is kept in its history.
           </p>
         )}
       </main>
 
       <footer className="shrink-0 bg-surface pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_4px_rgba(0,0,0,0.08)]">
-        <div className="grid grid-cols-3 gap-2 p-3 pb-2">
+        <div className="grid grid-cols-2 gap-2.5 p-3 pb-2">
           <button
             type="button"
             onClick={() => startDraft('saving')}
@@ -141,16 +141,6 @@ export function TrackerDetail({ budget }: { budget: Budget }) {
           >
             Add Debt
           </button>
-          {rows.length > 0 ? (
-            <Link
-              to={`/budget/${budget.id}/catch-up`}
-              className="rounded-xl button-fill [--fill:var(--color-brand)] py-3.5 text-center font-bold"
-            >
-              Catch Up
-            </Link>
-          ) : (
-            <span className="rounded-xl button-fill [--fill:var(--color-brand)] py-3.5 text-center font-bold opacity-40">Catch Up</span>
-          )}
         </div>
         <div className="flex items-stretch gap-3 px-4 pb-3">
           <dl className="grid min-w-0 flex-1 grid-cols-[auto_1fr] content-center gap-x-2 text-sm">

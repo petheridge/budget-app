@@ -6,8 +6,8 @@ import { entriesIn, linkTarget } from '../lib/selectors'
 import { SheetFrame } from './Sheet'
 
 /**
- * Chooses the saving or debt a budget expense pays into, so Catch Up can suggest
- * the value it should have reached. Lists every savings & debts budget's items.
+ * Chooses the saving or debt a budget expense pays into, shown as a label on both
+ * ("→ Cash ISA" and "£ 250.00 a month from Household"). Lists every savings & debts budget's items.
  */
 export function LinkSheet({ entry, onClose }: { entry: Entry; onClose: () => void }) {
   const { budgets, entries, setEntryLink } = useData()
@@ -33,7 +33,7 @@ export function LinkSheet({ entry, onClose }: { entry: Entry; onClose: () => voi
         <div className="text-center">
           <h2 className="truncate text-lg font-semibold">Link “{entry.name}”</h2>
           <p className="text-sm text-muted">
-            Which saving or debt does this pay into? Catch Up will suggest its new value.
+            Which saving or debt does this pay into?
           </p>
         </div>
         {groups.length === 0 ? (

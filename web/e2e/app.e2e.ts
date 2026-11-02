@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { addBudget, addRow, holdAndDrag, keypad, pressKeys, rowNames, signIn, unique } from './helpers'
+import { addBudget, addRow, holdAndDrag, keypad, pressKeys, rowNames, signIn, swipe, unique } from './helpers'
 
 const undoMessage = (page: Page) => page.getByRole('status').filter({ hasText: 'Deleted' })
 
@@ -123,7 +123,7 @@ test('press and hold to reorder, and sort by amount', async ({ page }) => {
   await expect.poll(() => rowNames(page)).toEqual(['Salary', 'Mortgage', 'Water'])
 })
 
-test('savings & debts: link a payment, catch up and see the history', async ({ page }) => {
+test('savings & debts: link a payment, update values and see the history', async ({ page }) => {
   const worth = unique('Net worth')
   const allBudgetsBalance = await page.locator('footer').innerText()
   await addBudget(page, worth, 'Savings & debts')
@@ -146,13 +146,14 @@ test('savings & debts: link a payment, catch up and see the history', async ({ p
   await page.getByRole('link', { name: new RegExp(worth) }).tap()
   await expect(page.locator('main')).toContainText('£ 250.00 a month from')
 
-  await page.getByRole('link', { name: 'Catch Up' }).tap()
-  await page.getByRole('button', { name: 'Cash ISA value' }).tap()
+  // Values are updated by tapping them; there's no separate catch-up page.
+  await expect(page.getByRole('link', { name: 'Catch Up' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Cash ISA current value' }).tap()
   await pressKeys(page, 'plus', '2', '5', '0')
-  await keypad(page).getByRole('button', { name: 'Next' }).tap()
+  await keypad(page).getByRole('button', { name: 'Done' }).tap()
+  await page.getByRole('button', { name: 'Mortgage amount owed' }).tap()
   await pressKeys(page, 'minus', '4', '5', '0')
   await keypad(page).getByRole('button', { name: 'Done' }).tap()
-  await page.getByRole('button', { name: 'Save Catch-Up' }).tap()
 
   await expect(page.locator('main')).toContainText('£ 12,650.00')
   await expect(page.locator('main')).toContainText('▲ £ 250.00 since')
@@ -161,6 +162,80 @@ test('savings & debts: link a payment, catch up and see the history', async ({ p
   await page.getByRole('button', { name: 'History' }).tap()
   await expect(page.getByRole('dialog')).toContainText('£ 180,000.00')
   await expect(page.getByRole('dialog')).toContainText('£ 179,550.00')
+})
+
+test('hides the balance where there are only savings & debts budgets', async ({ page }) => {
+  const folder = unique('Investments')
+  await page.getByRole('button', { name: 'Add folder' }).tap()
+  await page.getByLabel('Name').fill(folder)
+  await page.getByRole('button', { name: 'Save' }).tap()
+  await page.getByRole('link', { name: new RegExp(folder) }).tap()
+  const balance = page.locator('footer').getByText('Folder Balance:')
+
+  // Empty, then only savings & debts: nothing to total.
+  await expect(page.getByRole('button', { name: 'Add Budget' })).toBeVisible()
+  await expect(balance).toHaveCount(0)
+  await addBudget(page, unique('Pensions'), 'Savings & debts')
+  await page.getByRole('link', { name: new RegExp(folder) }).tap()
+  await expect(page.getByRole('button', { name: 'Add Budget' })).toBeVisible()
+  await expect(balance).toHaveCount(0)
+
+  // A regular budget brings it back.
+  await addBudget(page, unique('Fund'))
+  await addRow(page, 'Add Income', 'Top-up', '5', '0')
+  await page.getByRole('link', { name: new RegExp(folder) }).tap()
+  await expect(balance).toBeVisible()
+  await expect(page.locator('footer')).toContainText('+ £ 50.00')
+})
+
+test('swipe to delete a value from history, with undo', async ({ page }) => {
+  const name = unique('Net worth')
+  await addBudget(page, name, 'Savings & debts')
+  await addRow(page, 'Add Saving', 'Cash ISA', '1', '2', '4', '0', '0')
+  await addRow(page, 'Add Saving', 'Bonds', '5', '0', '0', '0')
+  for (const keys of [['plus', '2', '5', '0'], ['plus', '1', '0', '0']]) {
+    await page.getByRole('button', { name: 'Cash ISA current value' }).tap()
+    await pressKeys(page, ...keys)
+    await keypad(page).getByRole('button', { name: 'Done' }).tap()
+  }
+  const isa = page.locator('main li').filter({ hasText: 'Cash ISA' })
+  await expect(isa).toContainText('£ 12,750.00')
+
+  const openHistory = async (item: string) => {
+    await page.getByRole('button', { name: `Options for ${item}` }).tap()
+    await page.getByRole('button', { name: 'History' }).tap()
+  }
+  const history = page.getByRole('dialog')
+  const historyRow = (amount: string) => history.locator('li').filter({ hasText: amount })
+
+  // Deleting the newest value puts the current value back; Undo restores it.
+  await openHistory('Cash ISA')
+  await swipe(page, historyRow('£ 12,750.00'), -120)
+  await history.getByRole('button', { name: /^Delete £ 12,750.00 from/ }).tap()
+  await expect(undoMessage(page)).toContainText('Deleted £ 12,750.00 from')
+  await expect(historyRow('£ 12,750.00')).toHaveCount(0)
+  await expect(isa).toContainText('£ 12,650.00')
+  await page.getByRole('button', { name: 'Undo' }).tap()
+  await expect(historyRow('£ 12,750.00')).toHaveCount(1)
+  await expect(isa).toContainText('£ 12,750.00')
+
+  // Deleting an older value is final once the message goes.
+  await swipe(page, historyRow('£ 12,650.00'), -120)
+  await history.getByRole('button', { name: /^Delete £ 12,650.00 from/ }).tap()
+  await expect(undoMessage(page)).toBeHidden({ timeout: 10_000 })
+  await page.reload()
+  await openHistory('Cash ISA')
+  await expect(history.locator('li')).toHaveCount(2)
+  await expect(history).toContainText('£ 12,750.00')
+  await expect(history).toContainText('£ 12,400.00')
+  await expect(history).not.toContainText('£ 12,650.00')
+  await expect(isa).toContainText('£ 12,750.00')
+  await history.getByRole('button', { name: 'Close' }).tap()
+
+  // An item's only value can't be deleted.
+  await openHistory('Bonds')
+  await swipe(page, history.locator('li').first(), -120)
+  await expect(history.getByRole('button', { name: /^Delete/ })).toHaveCount(0)
 })
 
 test('only the list scrolls; the page itself is pinned', async ({ page }) => {
