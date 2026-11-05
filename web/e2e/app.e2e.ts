@@ -307,6 +307,8 @@ test('a menu grows from its button and shrinks back into it; reduced motion turn
   await button.tap()
   await expect(menu).toBeVisible()
   // Its transform-origin is the middle of the ⋮ button, at the menu's top edge.
+  // Measured once it has finished growing, as the animation's scale moves its edges.
+  await menu.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
   const origin = await menu.evaluate((el) => getComputedStyle(el).transformOrigin)
   const b = (await button.boundingBox())!
   const m = (await menu.boundingBox())!
@@ -324,7 +326,7 @@ test('a menu grows from its button and shrinks back into it; reduced motion turn
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await button.tap()
   await expect(menu).toBeVisible()
-  expect(await page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running').length)).toBe(0)
+  expect(await menu.evaluate((el) => el.getAnimations().length)).toBe(0)
   await page.keyboard.press('Escape')
   expect(await anyMenu.count()).toBe(0)
 })
