@@ -9,7 +9,7 @@ import { AmountField } from './AmountPad'
  * An entry's amount in a list, which opens the keypad when tapped so it can be
  * changed in place. Done saves it, and so does tapping anywhere outside the
  * amount and keypad. For a saving or debt, a changed value is recorded in its
- * history, as with Edit.
+ * history.
  */
 export function InlineAmount({
   entry,

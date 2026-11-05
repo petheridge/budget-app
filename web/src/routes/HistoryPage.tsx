@@ -1,37 +1,45 @@
 import { useRef, useState, type PointerEvent, type ReactNode } from 'react'
+import { Navigate, useParams } from 'react-router-dom'
+import { ChangeText, formatDay } from '../components/Change'
+import { Header } from '../components/Header'
 import { useData } from '../lib/data'
 import { formatUnsigned, isGoodChange, typeColour } from '../lib/money'
-import type { Entry } from '../lib/pb'
 import { historyOf } from '../lib/selectors'
-import { ChangeText, formatDay } from './Change'
-import { SheetFrame } from './Sheet'
 
 /**
- * Every recorded value of a saving or debt, newest first, with the change each
- * time. Swipe a value left to delete it (with Undo); deleting the newest puts the
- * item's current value back to the one before. The only value can't be deleted.
+ * A saving's or debt's own screen: every recorded value, newest first, with the
+ * change each time. Swipe a value left to delete it (with Undo); deleting the
+ * newest puts the item's current value back to the one before. The only value
+ * can't be deleted.
  */
-export function HistorySheet({ entry, onClose }: { entry: Entry; onClose: () => void }) {
-  const { snapshots, deleteSnapshot } = useData()
-  const history = historyOf(snapshots, entry.id)
-  const canDelete = history.length > 1
+export function HistoryPage() {
+  const { id } = useParams()
+  const { entries, budgets, snapshots, deleteSnapshot } = useData()
   // The row swiped open, if any: one at a time.
   const [openId, setOpenId] = useState<string | null>(null)
 
+  const entry = entries.find((e) => e.id === id)
+  const budget = budgets.find((b) => b.id === entry?.budget)
+  if (!entry || !budget) return <Navigate to="/" replace />
+
+  const history = historyOf(snapshots, entry.id)
+  const canDelete = history.length > 1
+
   return (
-    <SheetFrame label={`${entry.name} history`} onClose={onClose}>
-      <div className="flex flex-col p-4 pb-2">
-        <h2 className={`truncate text-center text-lg font-semibold ${typeColour(entry.type)}`}>
-          {entry.name}
-        </h2>
-        <p className="text-center text-sm text-muted">History</p>
-        <p className="pb-3 text-center text-xs text-muted">
-          {canDelete ? 'Swipe a value left to delete it.' : ''}
-        </p>
+    <div className="flex h-full flex-col">
+      <Header
+        title={<span className="truncate">History</span>}
+        back={{ to: `/budget/${budget.id}`, label: budget.name, isFolder: false }}
+      />
+      <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
+        <div className="px-4 pt-4 pb-3 text-center">
+          <h2 className={`truncate text-lg font-semibold ${typeColour(entry.type)}`}>{entry.name}</h2>
+          {canDelete && <p className="text-xs text-muted">Swipe a value left to delete it.</p>}
+        </div>
         {history.length === 0 ? (
           <p className="py-6 text-center text-muted">Nothing recorded yet.</p>
         ) : (
-          <ul className="max-h-[60dvh] overflow-x-hidden overflow-y-auto overscroll-contain rounded-xl bg-surface">
+          <ul className="border-t border-line bg-surface">
             {history.map((snapshot, i) => {
               const older = history[i + 1]
               const change = older ? snapshot.amount_pence - older.amount_pence : null
@@ -65,11 +73,8 @@ export function HistorySheet({ entry, onClose }: { entry: Entry; onClose: () => 
             })}
           </ul>
         )}
-        <button type="button" onClick={onClose} className="py-3 text-base text-muted">
-          Close
-        </button>
-      </div>
-    </SheetFrame>
+      </main>
+    </div>
   )
 }
 
@@ -140,7 +145,7 @@ function SwipeToDelete({
   }
 
   return (
-    <li className="relative border-b border-line last:border-b-0">
+    <li className="relative border-b border-line">
       {enabled && (
         <button
           type="button"

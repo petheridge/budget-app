@@ -54,8 +54,8 @@ Store all money as **integer pence**. Never use floats for amounts. Totals are *
 - `entry` — relation → `entries`, required, cascade delete
 - `amount_pence` — number (integer, positive): the value at the time
 - `created` — the date it was recorded
-- Written whenever a saving's or debt's value is set: when it's added, and whenever its amount changes (tapping the value, or Edit). The latest snapshot matches the entry's `amount_pence`
-- Can be deleted from History (swipe left). Deleting the newest also sets the entry's `amount_pence` back to the one before it, saved directly so no new snapshot is written. An entry's only snapshot can't be deleted
+- Written whenever a saving's or debt's value is set: when it's added, and whenever its amount changes (tapping the value). The latest snapshot matches the entry's `amount_pence`
+- Can be deleted on the History screen (swipe left). Deleting the newest also sets the entry's `amount_pence` back to the one before it, saved directly so no new snapshot is written. An entry's only snapshot can't be deleted
 
 ### Access rules
 Household app: any authenticated user can read/write all records. No public access. Create users via the PocketBase admin UI.
@@ -96,49 +96,57 @@ Household app: any authenticated user can read/write all records. No public acce
 
 **Header (brand colour):** back button labelled with the parent ("‹ 📁 Monthly" or "‹ Budgets") · budget name as title · menu icon.
 
-**Entry list:** flat full-width white rows separated by thin grey lines (not cards), compact (about 54px) like Fudget's.
+**Hero** (top of the list, scrolls with it): "Balance" label in grey and a large coloured balance. Only when the budget has both income and expenses, a quiet line under it: `Income £ x · Expenses £ y` (each figure in its type colour). Once it has scrolled out of sight, the balance shows in small white text under the budget's name in the header bar, as iOS large titles shrink into the bar.
+
+**Sections** (`components/Sections.tsx`): **Income** then **Expenses**, each a rounded white section on the grey background, as in iOS Settings, with a small grey uppercase heading and its subtotal (type colour) on the right.
+- Rows inside are compact (about 54px), separated by thin grey lines.
 - Entry name (left) **and** amount (right) are both coloured by type: green for income, red-orange for expense. Medium/semibold weight.
 - If a note exists, show it as a second line under the name: small grey text with a pencil icon.
-- Vertical divider, then an brand-coloured ⋮ menu column on the right.
-- Empty space below the list shows the light grey background.
+- Vertical divider, then a brand-coloured ⋮ menu column on the right.
+- Each section ends with a tinted **⊕ Add income** / **⊕ Add expense** row (as in iOS Reminders), not a filled button.
+- A section only shows once it has entries (or one is being added). Budgets are often used for just one kind, such as a folder with an income budget and several outgoings budgets, whose Folder Balance is the bottom line, so an empty section would only be clutter. The kind with no section gets a small centred **⊕ Add income** / **⊕ Add expense** link under the list instead (`AddLinks`); a new, empty budget shows both.
 
-**Bottom (pinned):**
-- Two side-by-side buttons: green **Add Income** and red-orange **Add Expense**
-- Summary footer split by a vertical divider:
-  - Left, small labels: `Income:` (green value), `Expenses:` (red value)
-  - Right: "Balance" label in grey, with a large coloured balance below it
+No footer: the hero replaces the old Income / Expenses / Balance summary, and the add rows replace the big Add Income / Add Expense buttons.
 
 ### 3. Adding and editing entries
-- **Add Income** / **Add Expense** adds a blank row inline at the end of the list (no pop-up, so the screen doesn't jump when the keyboard opens), with `type` set by the button pressed. Name is focused; Return opens the amount keypad, whose Save saves the row. Tapping outside the row and keypad also saves it; a blank name discards it; an empty amount saves as £0.00; ✕ cancels
+- **⊕ Add income** / **⊕ Add expense** adds a blank row inline at the end of its section (no pop-up, so the screen doesn't jump when the keyboard opens), with `type` set by the button pressed. Name is focused; Return opens the amount keypad, whose Save saves the row. Tapping outside the row and keypad also saves it; a blank name discards it; an empty amount saves as £0.00; ✕ cancels
 - **Tap a name in the list** to rename it in place: it becomes a text box; Return or tapping elsewhere saves, Escape or a blank name keeps the old one. (On savings & debts rows too; their history is in ⋮)
 - **Tap an amount in the list** to change it in place: the keypad opens on the current value (a digit replaces it, + or − works from it). Done saves; so does tapping elsewhere, unless the sum doesn't work out, which leaves it unchanged
-- **Edit** (from an entry's ⋮) opens a sheet, pre-filled: Name, Amount (£), Note (optional), Save / Cancel. Notes are added here
-- Also use a simple sheet to add or rename a budget or folder (name only, plus the folder to put it in).
+- **Notes:** **Add note** / **Edit note** (from an entry's ⋮) opens the note line under the name as a text box, in place. Return or tapping elsewhere saves; Escape keeps the old note; clearing it removes the note. There's no Edit sheet: name, amount and note are all edited in place
+- **Add Budget** opens a small menu (**Budget** or **Savings & debts**); the add-folder icon needs no choice. Either way a new card appears at the end of the list with its name box focused, as entries are added: Return or tapping elsewhere saves it, a blank name, Escape or ✕ discards it. It goes into the folder being shown; **Move to folder** changes that later
+- **Rename** (budget or folder ⋮, or the budget screen's menu) edits the name in place: on its card in the list, or in the header on the budget's own screen. Return or tapping elsewhere saves; Escape or a blank name keeps the old one
+
+### No pop-up windows
+The app has no sheets, pop-up forms or confirmation dialogs. Four patterns cover everything:
+- **Edit in place** for adding and changing things (names, amounts, notes, new budgets and folders)
+- **Menus** for choices: ⋮ and header menus open from the button tapped, as iOS ⋯ menus do, dropping down from it or opening upwards when there isn't room below. A tap outside or Escape only closes them; it doesn't reach what's underneath. A choice with options swaps the menu for a submenu (Sort by amount, Move to folder, with a ✓ on the current folder) (`components/Menu.tsx`; each opening is fresh, `components/useOverlay.ts`). Nothing animates when the phone is set to reduce motion
+- **Full screens** for anything needing room: a saving's or debt's **History** (`/entry/:id/history`) and a budget expense's **Link** picker (`/entry/:id/link`), each with a back button to its budget
+- **Undo** instead of "Are you sure?": deletes take effect at once with a 6-second Undo
 
 ### Amount keypad
-- Every amount (inline add, tapping an amount in a list, Edit sheet) opens the app's own keypad, not the iPhone keyboard, so amounts can be sums: digits, `.`, ⌫, + − × ÷ and a full-width Done (Save on an inline row)
+- Every amount (inline add, tapping an amount in a list) opens the app's own keypad, not the iPhone keyboard, so amounts can be sums: digits, `.`, ⌫, + − × ÷ and a full-width Done (Save on an inline row)
 - A line above the keys shows the sum and its result ("576 ÷ 12   = £ 48.00"), or what's wrong ("Can't be less than £ 0.00"), and Done then stays open
 - With a value already there, a digit replaces it and an operator carries on from it: "+ 250" adds to the current value
 - × and ÷ come before + and −. In each part of a sum the first number is money (up to 2 decimal places) and multipliers and divisors are plain numbers. Each part is rounded to the penny, all in integer pence (`evaluateAmount` in `money.ts`, unit tested). Only the result is stored, not the sum
-- It's part of the page (fixed to the bottom, above sheets), so nothing jumps. A computer keyboard types into it too
+- It's part of the page (fixed to the bottom, above everything), so nothing jumps. A computer keyboard types into it too
 - Names and notes still use the iPhone keyboard
 
 ### 4. Savings & debts budget
 - Chosen when adding a budget ("Budget" or "Savings & debts"), or from the ⋮ menu while a budget is empty
-- Same header and row layout as a budget. Each row: name and current value in the type colour (savings green, debts red-orange), and under the value a small "▲ £ 250.00 since 1 Oct" (or "No change since…"). Tapping the value opens the keypad to change it in place (recorded in history); tapping the name renames it. **History** (from ⋮) lists every recorded value with its date and change, newest first. **Swipe a value left** to show a red Delete button (as in iOS lists; a mostly vertical move scrolls instead, and tapping the open row closes it). Deleting has Undo; deleting the newest value puts the current value back to the one before; the only value can't be deleted
-- Bottom: **Add Saving** (green), **Add Debt** (red-orange). Adding works inline, as for entries. Footer: Savings, Debts and a large **Net worth**
-- **Linking:** a budget expense's ⋮ has **Link to saving or debt** (then **Change link**), choosing from every savings & debts item. The expense shows "→ Cash ISA" under its name; the saving or debt shows "£ 250.00 a month from Household" under its name. Links are labels only: they never change a value (a budget is a plan, not a record of payments)
+- Same header and row layout as a budget. Each row: name and current value in the type colour (savings green, debts red-orange), and under the value a small "▲ £ 250.00 since 1 Oct" (or "No change since…"). Tapping the value opens the keypad to change it in place (recorded in history); tapping the name renames it. **History** (from ⋮) is its own screen, listing every recorded value with its date and change, newest first. **Swipe a value left** to show a red Delete button (as in iOS lists; a mostly vertical move scrolls instead, and tapping the open row closes it). Deleting has Undo; deleting the newest value puts the current value back to the one before; the only value can't be deleted
+- Same layout as a budget: a **Net worth** hero (`Savings £ x · Debts £ y` under it when it has both), then **Savings** and **Debts** sections, each ending in an add row and shown only once it has something in it. Adding works inline, as for entries
+- **Linking:** a budget expense's ⋮ has **Link to saving or debt** (then **Change link**), which opens a screen listing every savings & debts item; choosing one (or **Remove Link**) goes back to the budget. The expense shows "→ Cash ISA" under its name; the saving or debt shows "£ 250.00 a month from Household" under its name. Links are labels only: they never change a value (a budget is a plan, not a record of payments)
 - Values are updated by tapping them (no separate catch-up page: it was removed as not adding enough). Each change is kept in History
 - Debts are entered as positive amounts owed
 
 ### ⋮ menus
-- **Entry:** Edit, Delete (no confirm: a "Deleted “Water” · Undo" message shows for 6 seconds). Savings and debts also have History, and deleting one deletes its history. Budget expenses also have Link to saving or debt / Change link (with Remove Link)
-- **Budget:** Sort by amount (Largest first / Smallest first; with 2+ entries), Rename, Move to folder, Change to Budget / Savings & debts (only while empty), Delete (confirm, then Undo for 6 seconds; deletes its entries)
+- **Entry:** Add note / Edit note, Delete (no confirm: a "Deleted “Water” · Undo" message shows for 6 seconds). Savings and debts also have History, and deleting one deletes its history. Budget expenses also have Link to saving or debt / Change link (with Remove Link)
+- **Budget:** Sort by amount (Largest first / Smallest first; with 2+ entries), Rename, Move to folder, Change to Budget / Savings & debts (only while empty), Delete (no confirm; Undo for 6 seconds; deletes its entries)
 - **Undo:** a deleted entry, budget or history value is hidden at once and only deleted on the server after 6 seconds, when another delete starts, or when the app goes to the background (so it isn't lost if iOS closes it). One at a time (`startDelete` in `data.tsx`)
-- **Folder:** Rename, Delete (only allowed when empty; otherwise explain why)
+- **Folder:** Rename, Delete (only when empty, so there's nothing to confirm; otherwise it's greyed out with "Move or delete what's inside first" under it)
 
 ### Reordering
-- **Press and hold** a row or card (about a third of a second), then drag, to reorder entries within a budget and cards within a list. No drag handles. A tap still reaches the row's links and buttons, moving before the hold completes scrolls instead, and letting go after a drag isn't a tap. Persist the result to `sort_order`
+- **Press and hold** a row or card (about a third of a second), then drag, to reorder entries within their section (income, expenses, savings or debts) and cards within a list. No drag handles. A tap still reaches the row's links and buttons, moving before the hold completes scrolls instead, and letting go after a drag isn't a tap. Persist the result to `sort_order`
 - **Sort by amount** (budget menu) is a one-off reorder, not a mode: income (or savings) stays above expenses (or debts), each largest or smallest first; equal amounts keep their order (`sortByAmount` in `selectors.ts`). Rows can be moved by hand afterwards
 
 ---
@@ -166,6 +174,7 @@ The app follows the phone's light or dark mode (`prefers-color-scheme`). Tokens 
 | `action` | `#0079B6` | `#45AEE8` | Add Budget button |
 | `bg` | `#F2F1ED` | `#16171B` | Page background |
 | `surface` | `#FFFFFF` | `#25272D` | Cards, rows, footer |
+| `raised` | `#FFFFFF` | `#33363E` | Menus, which float above cards |
 | `text` | `#3A3A3A` | `#ECEBF3` | Budget and folder names |
 | `muted` | `#8C8C8C` | `#9A9AA6` | Labels, notes, zero balances |
 | `folder` | `#C9C4EE` | `#4A4490` | Folder icon fill, keypad operator keys |
@@ -207,7 +216,7 @@ These are candidates for later phases. Structure the code so they can be added w
         ├── lib/pb.ts       # PocketBase client
         ├── lib/money.ts    # pence <-> display formatting, sum helpers (unit tested)
         ├── components/
-        └── routes/         # / , /folder/:id , /budget/:id
+        └── routes/         # / , /folder/:id , /budget/:id , /entry/:id/history , /entry/:id/link
 ```
 
 ## Development
@@ -218,7 +227,7 @@ These are candidates for later phases. Structure the code so they can be added w
 - Migrations: write `new Collection({...})` fields as plain objects with a `type`. Field class instances there are silently dropped, along with the collection's rules
 - `amount_pence` is deliberately not `required`, because PocketBase treats 0 as blank and £0.00 entries are valid
 - Sign-in is a minimal extra screen at `/login`, needed because all data requires auth. Public sign-up is disabled by the initial migration
-- Menu icons: the root header menu holds Sign out; the budget detail header menu holds the same actions as a budget's ⋮
+- Menu icons: the root header menu shows who's signed in and holds Sign out; the budget detail header menu holds the same actions as a budget's ⋮
 - All records are held in memory by `web/src/lib/data.tsx`, kept current by realtime, plus a refetch on reconnect and on returning to the foreground
 - Bind Vite to `0.0.0.0` so the app can be tested on an iPhone over the LAN
 - iOS home-screen app: the screen-edge colours and the blur under the status bar are controlled by WebKit, which looks for a fixed, full-width, opaque element at each edge. `web/src/components/EdgeBars.tsx` provides them; don't remove them or make them translucent. The page itself is pinned (`body` fixed) and only each screen's `<main>` scrolls. Neither can be checked in a desktop browser or headless Chromium, only on the phone

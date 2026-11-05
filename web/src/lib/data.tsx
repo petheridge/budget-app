@@ -229,6 +229,8 @@ function useStore() {
     status,
     problem,
     clearProblem: () => setProblem(''),
+    /** For a change already shown on screen: if `write` fails, says so and reloads. */
+    report: guard,
     /** "Deleted …" while a delete can still be undone, else ''. */
     undoLabel,
     undoDelete() {
@@ -250,6 +252,8 @@ function useStore() {
       )
     },
     async renameFolder(id: string, name: string) {
+      // Shown straight away, as it's typed in place.
+      folders.updateWhere((f) => f.id === id, (f) => ({ ...f, name }))
       folders.upsert(await folders.service.update(id, { name }))
     },
     deleteFolder(id: string) {
@@ -269,6 +273,7 @@ function useStore() {
       budgets.upsert(await budgets.service.update(id, { kind }))
     },
     async renameBudget(id: string, name: string) {
+      budgets.updateWhere((b) => b.id === id, (b) => ({ ...b, name }))
       budgets.upsert(await budgets.service.update(id, { name }))
     },
     async moveBudget(id: string, folder: string) {

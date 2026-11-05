@@ -10,26 +10,39 @@ import {
   FolderPlusIcon,
   MenuIcon,
 } from '../components/icons'
+import { Menu } from '../components/Menu'
+import { RenameInput } from '../components/RenameInput'
 import { ReorderList } from '../components/ReorderList'
-import { ActionSheet, NameSheet } from '../components/Sheet'
+import { DraftCard } from '../components/DraftCard'
+import { useOverlay } from '../components/useOverlay'
 import { useData } from '../lib/data'
 import { balanceColour, formatSigned } from '../lib/money'
-import { isTracker, pb } from '../lib/pb'
+import { isTracker, pb, type BudgetKind } from '../lib/pb'
 import { budgetBalance, cardsIn, levelBalance, type Card } from '../lib/selectors'
 
+// Menus open from the button tapped (`anchor`).
 type Sheet =
-  | { kind: 'addBudget' }
-  | { kind: 'addFolder' }
-  | { kind: 'appMenu' }
-  | { kind: 'cardMenu'; key: string }
+  | { kind: 'addMenu'; anchor: HTMLElement }
+  | { kind: 'appMenu'; anchor: HTMLElement }
+  | { kind: 'cardMenu'; key: string; anchor: HTMLElement }
 
 // Serves both the root list and the inside of a folder.
 export function BudgetList() {
   const { id } = useParams()
   const folderId = id ?? ''
-  const { folders, budgets, entries, createBudget, createFolder, reorderCards } = useData()
-  const [sheet, setSheet] = useState<Sheet | null>(null)
-  const close = () => setSheet(null)
+  const { folders, budgets, entries, createBudget, createFolder, reorderCards, renameBudget, renameFolder, report } =
+    useData()
+  const { sheet, open: setSheet, close } = useOverlay<Sheet>()
+  // The card whose name is being edited in place, if any.
+  const [renaming, setRenaming] = useState<string | null>(null)
+  // A new budget or folder being typed in at the end of the list. The key starts a fresh one each time.
+  const [draft, setDraft] = useState<{ key: number; kind: BudgetKind | 'folder' } | null>(null)
+  const startDraft = (kind: BudgetKind | 'folder') => setDraft({ key: Date.now(), kind })
+  const endDraft = (key: number) => setDraft((d) => (d?.key === key ? null : d))
+  const addFrom = (kind: BudgetKind) => {
+    close()
+    startDraft(kind)
+  }
 
   const folder = folders.find((f) => f.id === folderId)
   if (id && !folder) return <Navigate to="/" replace />
@@ -40,6 +53,13 @@ export function BudgetList() {
   // Savings & debts aren't in the balance, so with no regular budget here there's nothing to show.
   const showBalance = budgets.some((b) => b.folder === folderId && !isTracker(b))
   const openCard = sheet?.kind === 'cardMenu' ? cards.find((c) => c.key === sheet.key) : undefined
+
+  function rename(card: Card, name: string | null) {
+    setRenaming(null)
+    if (!name) return
+    if (card.kind === 'budget') report('rename the budget', renameBudget(card.record.id, name))
+    else report('rename the folder', renameFolder(card.record.id, name))
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -63,11 +83,11 @@ export function BudgetList() {
         }
         actions={
           <>
-            <HeaderButton label="Add folder" onClick={() => setSheet({ kind: 'addFolder' })}>
+            <HeaderButton label="Add folder" onClick={() => startDraft('folder')}>
               <FolderPlusIcon />
             </HeaderButton>
             {!folder && (
-              <HeaderButton label="Menu" onClick={() => setSheet({ kind: 'appMenu' })}>
+              <HeaderButton label="Menu" opensMenu onClick={(anchor) => setSheet({ kind: 'appMenu', anchor })}>
                 <MenuIcon />
               </HeaderButton>
             )}
@@ -76,7 +96,7 @@ export function BudgetList() {
       />
 
       <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
-        {cards.length === 0 && (
+        {cards.length === 0 && !draft && (
           <p className="p-8 text-center text-muted">Nothing here yet. Add a budget to get started.</p>
         )}
         <ReorderList
@@ -89,17 +109,34 @@ export function BudgetList() {
             <CardRow
               card={card}
               balance={card.kind === 'budget' ? budgetBalance(entries, card.record.id) : 0}
-              onMenu={() => setSheet({ kind: 'cardMenu', key: card.key })}
+              onMenu={(anchor) => setSheet({ kind: 'cardMenu', key: card.key, anchor })}
+              renaming={renaming === card.key}
+              onRenamed={(name) => rename(card, name)}
             />
           )}
         </ReorderList>
+        {draft && (
+          <DraftCard
+            key={draft.key}
+            kind={draft.kind === 'folder' ? 'folder' : 'budget'}
+            label={draft.kind === 'folder' ? 'New folder name' : 'New budget name'}
+            placeholder={
+              draft.kind === 'folder' ? 'Folder name' : draft.kind === 'tracker' ? 'E.g. Net worth' : 'E.g. Monthly'
+            }
+            onSave={(name) =>
+              draft.kind === 'folder' ? createFolder(name, folderId) : createBudget(name, folderId, draft.kind)
+            }
+            onDone={() => endDraft(draft.key)}
+          />
+        )}
       </main>
 
       <footer className="shrink-0 bg-surface pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_4px_rgba(0,0,0,0.08)]">
         <div className={showBalance ? 'p-3 pb-2' : 'p-3'}>
           <button
             type="button"
-            onClick={() => setSheet({ kind: 'addBudget' })}
+            aria-haspopup="menu"
+            onClick={(event) => setSheet({ kind: 'addMenu', anchor: event.currentTarget })}
             className="w-full rounded-xl button-fill [--fill:var(--color-action)] py-3.5 font-bold"
           >
             Add Budget
@@ -115,34 +152,46 @@ export function BudgetList() {
         )}
       </footer>
 
-      {sheet?.kind === 'addBudget' && (
-        <NameSheet
-          title="Add Budget"
-          chooseKind
-          folderLabel="Folder"
-          initialFolder={folderId}
-          onSave={createBudget}
+      {sheet?.kind === 'addMenu' && (
+        <Menu
+          key={sheet.instance}
+          anchor={sheet.anchor}
+          label="Add"
           onClose={close}
-        />
-      )}
-      {sheet?.kind === 'addFolder' && (
-        <NameSheet
-          title="Add Folder"
-          folderLabel="Inside"
-          initialFolder={folderId}
-          onSave={createFolder}
-          onClose={close}
+          items={[
+            { label: 'Budget', hint: 'Income and outgoings', onSelect: () => addFrom('budget') },
+            { label: 'Savings & debts', hint: 'Values tracked over time', onSelect: () => addFrom('tracker') },
+          ]}
         />
       )}
       {sheet?.kind === 'appMenu' && (
-        <ActionSheet
-          title={pb.authStore.record?.email ? `Signed in as ${pb.authStore.record.email}` : 'Menu'}
+        <Menu
+          key={sheet.instance}
+          anchor={sheet.anchor}
+          label="Menu"
+          title={pb.authStore.record?.email ? `Signed in as ${pb.authStore.record.email}` : undefined}
           onClose={close}
-          actions={[{ label: 'Sign out', onClick: () => pb.authStore.clear() }]}
+          items={[{ label: 'Sign out', onSelect: () => pb.authStore.clear() }]}
         />
       )}
-      {openCard?.kind === 'budget' && <BudgetMenu budget={openCard.record} onClose={close} />}
-      {openCard?.kind === 'folder' && <FolderMenu folder={openCard.record} onClose={close} />}
+      {sheet?.kind === 'cardMenu' && openCard?.kind === 'budget' && (
+        <BudgetMenu
+          key={sheet.instance}
+          budget={openCard.record}
+          anchor={sheet.anchor}
+          onClose={close}
+          onRename={() => setRenaming(openCard.key)}
+        />
+      )}
+      {sheet?.kind === 'cardMenu' && openCard?.kind === 'folder' && (
+        <FolderMenu
+          key={sheet.instance}
+          folder={openCard.record}
+          anchor={sheet.anchor}
+          onClose={close}
+          onRename={() => setRenaming(openCard.key)}
+        />
+      )}
     </div>
   )
 }
@@ -151,34 +200,58 @@ function CardRow({
   card,
   balance,
   onMenu,
+  renaming,
+  onRenamed,
 }: {
   card: Card
   balance: number
-  onMenu: () => void
+  onMenu: (anchor: HTMLElement) => void
+  renaming: boolean
+  onRenamed: (name: string | null) => void
 }) {
   const isFolder = card.kind === 'folder'
+  const inner = (
+    <>
+      {isFolder && <FolderIcon />}
+      {renaming ? (
+        <span className="min-w-0 flex-1">
+          <RenameInput
+            value={card.record.name}
+            label={`Name for ${card.record.name}`}
+            onDone={onRenamed}
+            className="bg-bg text-text ring-2 ring-brand ring-inset"
+          />
+        </span>
+      ) : (
+        <span className="min-w-0 flex-1 truncate text-text">{card.record.name}</span>
+      )}
+      {!isFolder && (
+        // A savings & debts card shows net worth in brand colour, apart from money in and out.
+        <span
+          className={`font-bold whitespace-nowrap ${isTracker(card.record) ? 'text-brand' : balanceColour(balance)}`}
+        >
+          {formatSigned(balance)}
+        </span>
+      )}
+      <ChevronIcon />
+    </>
+  )
+  const layout = 'flex min-w-0 flex-1 items-center gap-2 pr-2 pl-4'
   return (
     <div className="flex min-h-[68px] items-stretch rounded-xl bg-surface shadow-[0_1px_4px_rgba(0,0,0,0.1)]">
-      <Link
-        to={isFolder ? `/folder/${card.record.id}` : `/budget/${card.record.id}`}
-        className="flex min-w-0 flex-1 items-center gap-2 pr-2 pl-4"
-      >
-        {isFolder && <FolderIcon />}
-        <span className="min-w-0 flex-1 truncate text-text">{card.record.name}</span>
-        {!isFolder && (
-          // A savings & debts card shows net worth in brand colour, apart from money in and out.
-          <span
-            className={`font-bold whitespace-nowrap ${isTracker(card.record) ? 'text-brand' : balanceColour(balance)}`}
-          >
-            {formatSigned(balance)}
-          </span>
-        )}
-        <ChevronIcon />
-      </Link>
+      {/* While renaming, a tap in the card mustn't open it. */}
+      {renaming ? (
+        <div className={layout}>{inner}</div>
+      ) : (
+        <Link to={isFolder ? `/folder/${card.record.id}` : `/budget/${card.record.id}`} className={layout}>
+          {inner}
+        </Link>
+      )}
       <button
         type="button"
         aria-label={`Options for ${card.record.name}`}
-        onClick={onMenu}
+        aria-haspopup="menu"
+        onClick={(event) => onMenu(event.currentTarget)}
         className="my-3 flex w-10 shrink-0 items-center justify-center border-l border-line text-brand"
       >
         <DotsIcon />

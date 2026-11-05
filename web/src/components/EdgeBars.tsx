@@ -15,14 +15,14 @@ import { useLocation } from 'react-router-dom'
  * Rules the bars must meet: position fixed, width 90–105% of the viewport,
  * more than 10px tall, an opaque background, and on top at a point 4px in from
  * the edge. pointer-events: none keeps them out of the way of taps, and WebKit
- * still finds them. z-30 keeps them under sheets (z-40), so a sheet's dimmed
+ * still finds them. z-30 keeps them under menus (z-40), so a menu's
  * backdrop wins while it's open. Only shown in the home-screen app, the case
  * they're for; in a desktop browser they'd run past the centred column.
  */
 export function EdgeBars() {
   const { pathname } = useLocation()
-  // Every screen but sign-in has a white footer at the bottom.
-  const bottom = pathname === '/login' ? 'bg-bg' : 'bg-surface'
+  // Only the budget lists have a white footer at the bottom; other screens end in the page colour.
+  const bottom = pathname === '/' || pathname.startsWith('/folder/') ? 'bg-surface' : 'bg-bg'
   const bar = 'pointer-events-none fixed inset-x-0 z-30 hidden standalone:block'
   return (
     <>

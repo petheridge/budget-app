@@ -3,6 +3,8 @@ import { EdgeBars } from './components/EdgeBars'
 import { RequireAuth } from './components/RequireAuth'
 import { BudgetDetail } from './routes/BudgetDetail'
 import { BudgetList } from './routes/BudgetList'
+import { HistoryPage } from './routes/HistoryPage'
+import { LinkPage } from './routes/LinkPage'
 import { Login } from './routes/Login'
 
 export function App() {
@@ -16,6 +18,8 @@ export function App() {
             <Route path="/" element={<BudgetList />} />
             <Route path="/folder/:id" element={<BudgetList />} />
             <Route path="/budget/:id" element={<BudgetDetail />} />
+            <Route path="/entry/:id/history" element={<HistoryPage />} />
+            <Route path="/entry/:id/link" element={<LinkPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

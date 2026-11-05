@@ -12,6 +12,7 @@
   --color-action: #0079b6;
   --color-bg: #f2f1ed;
   --color-surface: #ffffff;
+  --color-raised: #ffffff;
   --color-text: #3a3a3a;
   --color-muted: #8c8c8c;
   --color-folder: #c9c4ee;
@@ -33,6 +34,8 @@
     --color-action: #45aee8;
     --color-bg: #16171b;
     --color-surface: #25272d;
+    /* Menus float above cards, so they're lighter here, as on iOS. */
+    --color-raised: #33363e;
     --color-text: #ecebf3;
     --color-muted: #9a9aa6;
     --color-folder: #4a4490;
@@ -93,9 +96,24 @@ body {
 
 /*
  * While the app's amount keypad is open (components/AmountPad.tsx), leave room to
- * scroll the box being edited above it, in a screen's list or in a sheet.
+ * scroll the box being edited above it in a screen's list.
  */
-body.amount-pad-open main,
-body.amount-pad-open [role='dialog'] {
+body.amount-pad-open main {
   padding-bottom: var(--amount-pad-height, 0px);
+}
+
+/* Menus grow from the button that opened them (components/Menu.tsx), unless the phone is set to reduce motion. */
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+.menu-in {
+  animation: menu-in 150ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .menu-in {
+    animation: none;
+  }
 }

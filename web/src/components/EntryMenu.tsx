@@ -1,43 +1,62 @@
-import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useData } from '../lib/data'
 import type { Entry } from '../lib/pb'
 import { linkTarget } from '../lib/selectors'
-import { EntrySheet } from './EntrySheet'
-import { HistorySheet } from './HistorySheet'
-import { LinkSheet } from './LinkSheet'
-import { ActionSheet } from './Sheet'
+import { Menu } from './Menu'
 
-export function EntryMenu({ entry, onClose }: { entry: Entry; onClose: () => void }) {
+/**
+ * An entry's ⋮ menu. Name and amount are changed by tapping them in the list, so
+ * there's no Edit: the note is the only thing left, and it's edited in place too.
+ */
+export function EntryMenu({
+  entry,
+  anchor,
+  onClose,
+  onEditNote,
+}: {
+  entry: Entry
+  /** The ⋮ button the menu opens from. */
+  anchor: HTMLElement
+  onClose: () => void
+  /** Opens the note for editing under the entry's name. */
+  onEditNote: () => void
+}) {
   const { deleteEntry, entries, budgets } = useData()
-  const [step, setStep] = useState<'menu' | 'edit' | 'history' | 'link'>('menu')
+  const navigate = useNavigate()
   const tracked = entry.type === 'saving' || entry.type === 'debt'
-
-  if (step === 'edit') {
-    return <EntrySheet budgetId={entry.budget} type={entry.type} entry={entry} onClose={onClose} />
+  const go = (to: string) => {
+    onClose()
+    navigate(to)
   }
-  if (step === 'history') return <HistorySheet entry={entry} onClose={onClose} />
-  if (step === 'link') return <LinkSheet entry={entry} onClose={onClose} />
+
   return (
-    <ActionSheet
-      title={entry.name}
+    <Menu
+      anchor={anchor}
+      label={`Options for ${entry.name}`}
       onClose={onClose}
-      actions={[
-        ...(tracked ? [{ label: 'History', onClick: () => setStep('history') }] : []),
+      items={[
+        ...(tracked ? [{ label: 'History', onSelect: () => go(`/entry/${entry.id}/history`) }] : []),
         // Money going out of a budget into a saving or onto a debt.
         ...(entry.type === 'expense'
           ? [
               {
                 label: linkTarget(entry, entries, budgets) ? 'Change link' : 'Link to saving or debt',
-                onClick: () => setStep('link'),
+                onSelect: () => go(`/entry/${entry.id}/link`),
               },
             ]
           : []),
-        { label: 'Edit', onClick: () => setStep('edit') },
+        {
+          label: entry.note ? 'Edit note' : 'Add note',
+          onSelect: () => {
+            onClose()
+            onEditNote()
+          },
+        },
         // No confirm step: the delete can be undone for a few seconds.
         {
           label: 'Delete',
           danger: true,
-          onClick: () => {
+          onSelect: () => {
             deleteEntry(entry.id)
             onClose()
           },
