@@ -83,7 +83,7 @@ export function parsePence(input: string): number | null {
   return Number.isSafeInteger(pence) ? pence : null
 }
 
-/** For pre-filling the edit sheet, e.g. 123456 -> "1234.56". */
+/** For opening the keypad on an existing amount, e.g. 123456 -> "1234.56". */
 export function penceToInput(pence: number): string {
   return `${Math.floor(pence / 100)}.${String(pence % 100).padStart(2, '0')}`
 }

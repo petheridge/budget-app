@@ -139,7 +139,7 @@ function AmountPad({
       const field = anchor.current
       if (!field) return
       const overlap = field.getBoundingClientRect().bottom - pad.getBoundingClientRect().top + 12
-      const scroller = field.closest<HTMLElement>('main, [role="dialog"]')
+      const scroller = field.closest<HTMLElement>('main')
       if (overlap > 0 && scroller) scroller.scrollBy({ top: overlap, behavior: 'smooth' })
     })
     return () => {

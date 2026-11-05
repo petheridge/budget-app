@@ -1,104 +1,112 @@
 import { useState } from 'react'
 import { useData } from '../lib/data'
 import { isTracker, type Budget } from '../lib/pb'
-import { entriesIn, sortByAmount } from '../lib/selectors'
-import { ActionSheet, ConfirmSheet, FolderSelect, FormSheet, NameSheet } from './Sheet'
+import { entriesIn, folderPath, sortByAmount } from '../lib/selectors'
+import { Menu } from './Menu'
 
 export function BudgetMenu({
   budget,
+  anchor,
   onClose,
+  onRename,
   onBeforeDelete,
 }: {
   budget: Budget
+  /** The button the menu opens from. */
+  anchor: HTMLElement
   onClose: () => void
+  /** Rename is done in place, by whatever shows the name. */
+  onRename: () => void
   onBeforeDelete?: () => void
 }) {
-  const { renameBudget, deleteBudget, setBudgetKind, entries, reorderEntries } = useData()
+  const { deleteBudget, setBudgetKind, moveBudget, report, entries, folders, reorderEntries } = useData()
   // A budget's type can only change while it's empty, so no entry has the wrong kind of type.
   const isEmpty = !entries.some((e) => e.budget === budget.id)
   const rows = entriesIn(entries, budget.id)
-  const [step, setStep] = useState<'menu' | 'rename' | 'move' | 'delete' | 'sort'>('menu')
+  const [step, setStep] = useState<'menu' | 'move' | 'sort'>('menu')
 
-  if (step === 'rename') {
+  if (step === 'move') {
+    const move = (folder: string) => {
+      if (folder !== budget.folder) report('move the budget', moveBudget(budget.id, folder))
+      onClose()
+    }
+    const choices = folders
+      .map((folder) => ({ id: folder.id, path: folderPath(folders, folder) }))
+      .sort((a, b) => a.path.localeCompare(b.path))
     return (
-      <NameSheet
-        title="Rename Budget"
-        initialName={budget.name}
-        onSave={(name) => renameBudget(budget.id, name)}
+      <Menu
+        anchor={anchor}
+        label={`Move ${budget.name} to folder`}
+        title="Move to folder"
         onClose={onClose}
+        items={[
+          { label: 'Budgets (top level)', checked: budget.folder === '', onSelect: () => move('') },
+          ...choices.map((choice) => ({
+            label: choice.path,
+            checked: budget.folder === choice.id,
+            onSelect: () => move(choice.id),
+          })),
+        ]}
       />
     )
   }
-  if (step === 'move') return <MoveSheet budget={budget} onClose={onClose} />
   if (step === 'sort') {
     const sort = (order: 'largest' | 'smallest') => {
       reorderEntries(sortByAmount(rows, order))
       onClose()
     }
     return (
-      <ActionSheet
-        title={`Sort ${budget.name} by amount`}
+      <Menu
+        anchor={anchor}
+        label={`Sort ${budget.name} by amount`}
+        title="Sort by amount"
         onClose={onClose}
-        actions={[
-          { label: 'Largest first', onClick: () => sort('largest') },
-          { label: 'Smallest first', onClick: () => sort('smallest') },
+        items={[
+          { label: 'Largest first', onSelect: () => sort('largest') },
+          { label: 'Smallest first', onSelect: () => sort('smallest') },
         ]}
       />
     )
   }
-  if (step === 'delete') {
-    return (
-      <ConfirmSheet
-        title={`Delete "${budget.name}"?`}
-        message="This also deletes all of its entries. You can undo it for a few seconds."
-        confirmLabel="Delete Budget"
-        onConfirm={() => {
-          onBeforeDelete?.()
-          deleteBudget(budget.id)
-          onClose()
-        }}
-        onClose={onClose}
-      />
-    )
-  }
   return (
-    <ActionSheet
-      title={budget.name}
+    <Menu
+      anchor={anchor}
+      label={`Options for ${budget.name}`}
       onClose={onClose}
-      actions={[
+      items={[
         // A one-off sort; rows can still be moved by hand afterwards.
-        ...(rows.length > 1 ? [{ label: 'Sort by amount', onClick: () => setStep('sort') }] : []),
-        { label: 'Rename', onClick: () => setStep('rename') },
-        { label: 'Move to folder', onClick: () => setStep('move') },
+        ...(rows.length > 1 ? [{ label: 'Sort by amount', onSelect: () => setStep('sort') }] : []),
+        {
+          label: 'Rename',
+          onSelect: () => {
+            onClose()
+            onRename()
+          },
+        },
+        { label: 'Move to folder', onSelect: () => setStep('move') },
         ...(isEmpty
           ? [
               {
                 label: isTracker(budget) ? 'Change to Budget' : 'Change to Savings & debts',
-                onClick: () => {
+                onSelect: () => {
                   void setBudgetKind(budget.id, isTracker(budget) ? 'budget' : 'tracker')
                   onClose()
                 },
               },
             ]
           : []),
-        { label: 'Delete', danger: true, onClick: () => setStep('delete') },
+        // No confirm step: the delete, entries and all, can be undone for a few seconds.
+        {
+          label: 'Delete',
+          danger: true,
+          onSelect: () => {
+            onClose()
+            onBeforeDelete?.()
+            deleteBudget(budget.id)
+          },
+        },
       ]}
     />
   )
 }
 
-function MoveSheet({ budget, onClose }: { budget: Budget; onClose: () => void }) {
-  const { moveBudget } = useData()
-  const [folder, setFolder] = useState(budget.folder)
-
-  async function save() {
-    if (folder !== budget.folder) await moveBudget(budget.id, folder)
-    onClose()
-  }
-
-  return (
-    <FormSheet title="Move to Folder" onSave={save} onClose={onClose}>
-      <FolderSelect label="Folder" value={folder} onChange={setFolder} />
-    </FormSheet>
-  )
-}

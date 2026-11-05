@@ -1,54 +1,49 @@
-import { useState } from 'react'
 import { useData } from '../lib/data'
 import type { Folder } from '../lib/pb'
-import { ActionSheet, ConfirmSheet, NameSheet, NoticeSheet } from './Sheet'
+import { Menu } from './Menu'
 
-export function FolderMenu({ folder, onClose }: { folder: Folder; onClose: () => void }) {
-  const { folders, budgets, renameFolder, deleteFolder } = useData()
-  const [step, setStep] = useState<'menu' | 'rename' | 'delete'>('menu')
+export function FolderMenu({
+  folder,
+  anchor,
+  onClose,
+  onRename,
+}: {
+  folder: Folder
+  /** The button the menu opens from. */
+  anchor: HTMLElement
+  onClose: () => void
+  /** Rename is done in place, on the folder's card. */
+  onRename: () => void
+}) {
+  const { folders, budgets, deleteFolder } = useData()
+  const empty =
+    !budgets.some((b) => b.folder === folder.id) && !folders.some((f) => f.parent === folder.id)
 
-  if (step === 'rename') {
-    return (
-      <NameSheet
-        title="Rename Folder"
-        initialName={folder.name}
-        onSave={(name) => renameFolder(folder.id, name)}
-        onClose={onClose}
-      />
-    )
-  }
-  if (step === 'delete') {
-    const empty =
-      !budgets.some((b) => b.folder === folder.id) && !folders.some((f) => f.parent === folder.id)
-    if (!empty) {
-      return (
-        <NoticeSheet
-          title="This folder isn't empty"
-          message={`Move or delete everything inside "${folder.name}" first, then you can delete the folder.`}
-          onClose={onClose}
-        />
-      )
-    }
-    return (
-      <ConfirmSheet
-        title={`Delete "${folder.name}"?`}
-        message="This can't be undone."
-        confirmLabel="Delete Folder"
-        onConfirm={() => {
-          deleteFolder(folder.id)
-          onClose()
-        }}
-        onClose={onClose}
-      />
-    )
-  }
   return (
-    <ActionSheet
-      title={folder.name}
+    <Menu
+      anchor={anchor}
+      label={`Options for ${folder.name}`}
       onClose={onClose}
-      actions={[
-        { label: 'Rename', onClick: () => setStep('rename') },
-        { label: 'Delete', danger: true, onClick: () => setStep('delete') },
+      items={[
+        {
+          label: 'Rename',
+          onSelect: () => {
+            onClose()
+            onRename()
+          },
+        },
+        // Says up front why it can't be deleted, rather than after trying. Only an
+        // empty folder can go, and nothing is lost with it, so there's no confirm step.
+        {
+          label: 'Delete',
+          danger: true,
+          disabled: !empty,
+          hint: empty ? undefined : 'Move or delete what’s inside first',
+          onSelect: () => {
+            onClose()
+            deleteFolder(folder.id)
+          },
+        },
       ]}
     />
   )

@@ -14,13 +14,27 @@ export async function signIn(page: Page) {
   await expect(page.getByRole('button', { name: 'Add Budget' })).toBeVisible()
 }
 
+/** Adds a budget on the list screen being shown, typed into a new card, and stays there. */
+export async function addBudgetHere(page: Page, name: string, kind: 'Budget' | 'Savings & debts' = 'Budget') {
+  await page.getByRole('button', { name: 'Add Budget' }).tap()
+  await page.getByRole('menuitem', { name: new RegExp(`^${kind}`) }).tap()
+  await page.getByLabel('New budget name').fill(name)
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('link', { name: new RegExp(name) })).toBeVisible()
+}
+
 /** Adds a budget from the list screen and opens it. */
 export async function addBudget(page: Page, name: string, kind: 'Budget' | 'Savings & debts' = 'Budget') {
-  await page.getByRole('button', { name: 'Add Budget' }).tap()
-  if (kind !== 'Budget') await page.getByRole('radio', { name: new RegExp(kind) }).tap()
-  await page.getByLabel('Name').fill(name)
-  await page.getByRole('button', { name: 'Save' }).tap()
+  await addBudgetHere(page, name, kind)
   await page.getByRole('link', { name: new RegExp(name) }).tap()
+}
+
+/** Adds a folder on the list screen being shown, typed into a new card. */
+export async function addFolder(page: Page, name: string) {
+  await page.getByRole('button', { name: 'Add folder' }).tap()
+  await page.getByLabel('New folder name').fill(name)
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('link', { name: new RegExp(name) })).toBeVisible()
 }
 
 export const keypad = (page: Page) => page.getByRole('group', { name: 'Amount keypad' })

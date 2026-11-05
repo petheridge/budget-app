@@ -5,11 +5,11 @@ import { evaluateAmount, typeColour, type EntryType } from '../lib/money'
 import { AmountField } from './AmountPad'
 
 /**
- * A new entry typed straight into the list, in place of a pop-up sheet, so the
+ * A new entry typed straight into the list, rather than in a pop-up, so the
  * screen doesn't jump when the keyboard opens. Return in the name opens the
  * amount keypad, where Done saves the row. Tapping anywhere outside the row and
  * keypad also saves it; a blank name discards it; an empty amount saves as £0.00.
- * Notes are added afterwards with Edit.
+ * Notes are added afterwards from the ⋮ menu (Add note).
  */
 export function DraftEntryRow({
   budgetId,

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { FolderIcon } from './icons'
+import { RenameInput } from './RenameInput'
 
 export interface Back {
   to: string
@@ -41,20 +42,45 @@ export function Header({
 export function HeaderButton({
   label,
   onClick,
+  opensMenu = false,
   children,
 }: {
   label: string
-  onClick: () => void
+  /** Given the button, for a menu to open from. */
+  onClick: (button: HTMLElement) => void
+  opensMenu?: boolean
   children: ReactNode
 }) {
   return (
     <button
       type="button"
       aria-label={label}
-      onClick={onClick}
+      aria-haspopup={opensMenu ? 'menu' : undefined}
+      onClick={(event) => onClick(event.currentTarget)}
       className="flex size-10 items-center justify-center"
     >
       {children}
     </button>
+  )
+}
+
+/** A screen's title, which becomes a text box while it's being renamed. */
+export function EditableTitle({
+  name,
+  renaming,
+  onDone,
+}: {
+  name: string
+  renaming: boolean
+  onDone: (name: string | null) => void
+}) {
+  if (!renaming) return <span className="truncate">{name}</span>
+  return (
+    <RenameInput
+      value={name}
+      label={`Name for ${name}`}
+      onDone={onDone}
+      className="bg-white/15 text-center font-semibold text-white ring-2 ring-white/70 ring-inset selection:bg-white/35 selection:text-white"
+    />
   )
 }

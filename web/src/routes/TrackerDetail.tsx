@@ -4,11 +4,14 @@ import { BudgetMenu } from '../components/BudgetMenu'
 import { ChangeText, formatDay } from '../components/Change'
 import { DraftEntryRow } from '../components/DraftEntryRow'
 import { EntryMenu } from '../components/EntryMenu'
-import { Header, HeaderButton } from '../components/Header'
+import { EditableTitle, Header, HeaderButton } from '../components/Header'
 import { InlineAmount } from '../components/InlineAmount'
 import { InlineName } from '../components/InlineName'
-import { DotsIcon, MenuIcon, PencilIcon } from '../components/icons'
+import { InlineNote } from '../components/InlineNote'
+import { DotsIcon, MenuIcon } from '../components/icons'
 import { ReorderList } from '../components/ReorderList'
+import { AddLinks, EntrySection, Hero, HeroPart, TitleWithAmount, useHero } from '../components/Sections'
+import { useOverlay } from '../components/useOverlay'
 import { useData } from '../lib/data'
 import {
   balance,
@@ -23,7 +26,8 @@ import {
 import type { Budget, Entry } from '../lib/pb'
 import { changeSincePrevious, entriesIn, linkedInto } from '../lib/selectors'
 
-type Sheet = { kind: 'budgetMenu' } | { kind: 'entryMenu'; id: string }
+// Menus open from the button tapped (`anchor`).
+type Sheet = { kind: 'budgetMenu'; anchor: HTMLElement } | { kind: 'entryMenu'; id: string; anchor: HTMLElement }
 
 /**
  * A savings & debts budget: each item has a current value, recorded with a date
@@ -31,9 +35,11 @@ type Sheet = { kind: 'budgetMenu' } | { kind: 'entryMenu'; id: string }
  */
 export function TrackerDetail({ budget }: { budget: Budget }) {
   const navigate = useNavigate()
-  const { folders, budgets, entries, snapshots, reorderEntries } = useData()
-  const [sheet, setSheet] = useState<Sheet | null>(null)
-  const close = () => setSheet(null)
+  const { folders, budgets, entries, snapshots, reorderEntries, renameBudget, report } = useData()
+  const { sheet, open: setSheet, close } = useOverlay<Sheet>()
+  const [renaming, setRenaming] = useState(false)
+  // The entry whose note is open for editing, if any.
+  const [editingNote, setEditingNote] = useState<string | null>(null)
   // As in BudgetDetail: the key lets a row that finishes saving late close only itself.
   const [draft, setDraft] = useState<{ key: number; type: EntryType } | null>(null)
   const startDraft = (type: EntryType) => setDraft({ key: Date.now(), type })
@@ -41,131 +47,144 @@ export function TrackerDetail({ budget }: { budget: Budget }) {
   // The item whose value is open on the keypad, if any.
   const [editingAmount, setEditingAmount] = useState<string | null>(null)
   const closeAmount = useCallback(() => setEditingAmount(null), [])
+  const hero = useHero()
 
   const folder = folders.find((f) => f.id === budget.folder)
   const backTo = folder ? `/folder/${folder.id}` : '/'
   const rows = entriesIn(entries, budget.id)
   const netWorth = balance(rows)
+  // Savings and debts each have their own section, reordered within it.
+  const ofType = (type: EntryType) => rows.filter((e) => e.type === type)
+  // A section shows once it has something in it (or one is being added), so a budget
+  // used for just one kind isn't cluttered with an empty section.
+  const shown = (['saving', 'debt'] as const).filter((type) => ofType(type).length > 0 || draft?.type === type)
+  const hidden = (['saving', 'debt'] as const).filter((type) => !shown.includes(type))
+  const reorderWithin = (type: EntryType, ordered: Entry[]) =>
+    reorderEntries(type === 'saving' ? [...ordered, ...ofType('debt')] : [...ofType('saving'), ...ordered])
   const openEntry = sheet && sheet.kind !== 'budgetMenu' ? rows.find((e) => e.id === sheet.id) : undefined
+
+  const renderRow = (entry: Entry) => {
+    const colour = typeColour(entry.type)
+    const moved = changeSincePrevious(entry, snapshots)
+    return (
+      <div className="flex min-h-[54px] items-stretch border-b border-line bg-surface">
+        <div className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-2 pl-4">
+          <div className="min-w-0 flex-1">
+            <InlineName entry={entry} className={`font-semibold ${colour}`} />
+            <InlineNote
+              entry={entry}
+              editing={editingNote === entry.id}
+              onDone={() => setEditingNote(null)}
+            />
+            <LinkedFrom links={linkedInto(entry, entries, budgets)} budgets={budgets} />
+          </div>
+          <InlineAmount
+            entry={entry}
+            open={editingAmount === entry.id}
+            onOpen={() => setEditingAmount(entry.id)}
+            onClose={closeAmount}
+            className="font-semibold"
+          >
+            <span className={`block whitespace-nowrap ${colour}`}>{formatUnsigned(entry.amount_pence)}</span>
+            {moved && (
+              <span className="block whitespace-nowrap">
+                <ChangeText
+                  change={moved.change}
+                  good={isGoodChange(entry.type, moved.change)}
+                  suffix={` since ${formatDay(moved.since)}`}
+                />
+              </span>
+            )}
+          </InlineAmount>
+        </div>
+        <button
+          type="button"
+          aria-label={`Options for ${entry.name}`}
+          aria-haspopup="menu"
+          onClick={(event) => setSheet({ kind: 'entryMenu', id: entry.id, anchor: event.currentTarget })}
+          className="my-3 flex w-10 shrink-0 items-center justify-center border-l border-line text-brand"
+        >
+          <DotsIcon />
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-full flex-col">
       <Header
-        title={<span className="truncate">{budget.name}</span>}
+        title={
+          <TitleWithAmount
+            amount={hero.scrolledPast && !renaming ? formatSigned(netWorth) : null}
+            title={
+              <EditableTitle
+                name={budget.name}
+                renaming={renaming}
+                onDone={(name) => {
+                  setRenaming(false)
+                  if (name) report('rename the budget', renameBudget(budget.id, name))
+                }}
+              />
+            }
+          />
+        }
         back={{ to: backTo, label: folder?.name ?? 'Budgets', isFolder: !!folder }}
         actions={
-          <HeaderButton label="Budget menu" onClick={() => setSheet({ kind: 'budgetMenu' })}>
+          <HeaderButton label="Budget menu" opensMenu onClick={(anchor) => setSheet({ kind: 'budgetMenu', anchor })}>
             <MenuIcon />
           </HeaderButton>
         }
       />
 
-      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <ReorderList items={rows} getId={(entry) => entry.id} onReorder={reorderEntries}>
-          {(entry) => {
-            const colour = typeColour(entry.type)
-            const moved = changeSincePrevious(entry, snapshots)
-            return (
-              <div className="flex min-h-[54px] items-stretch border-b border-line bg-surface">
-                <div className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-2 pl-4">
-                  <div className="min-w-0 flex-1">
-                    <InlineName entry={entry} className={`font-semibold ${colour}`} />
-                    {entry.note && (
-                      <span className="mt-0.5 flex items-start gap-1 text-xs break-words text-muted">
-                        <PencilIcon />
-                        <span className="min-w-0">{entry.note}</span>
-                      </span>
-                    )}
-                    <LinkedFrom links={linkedInto(entry, entries, budgets)} budgets={budgets} />
-                  </div>
-                  <InlineAmount
-                    entry={entry}
-                    open={editingAmount === entry.id}
-                    onOpen={() => setEditingAmount(entry.id)}
-                    onClose={closeAmount}
-                    className="font-semibold"
-                  >
-                    <span className={`block whitespace-nowrap ${colour}`}>{formatUnsigned(entry.amount_pence)}</span>
-                    {moved && (
-                      <span className="block whitespace-nowrap">
-                        <ChangeText
-                          change={moved.change}
-                          good={isGoodChange(entry.type, moved.change)}
-                          suffix={` since ${formatDay(moved.since)}`}
-                        />
-                      </span>
-                    )}
-                  </InlineAmount>
-                </div>
-                <button
-                  type="button"
-                  aria-label={`Options for ${entry.name}`}
-                  onClick={() => setSheet({ kind: 'entryMenu', id: entry.id })}
-                  className="my-3 flex w-10 shrink-0 items-center justify-center border-l border-line text-brand"
-                >
-                  <DotsIcon />
-                </button>
-              </div>
+      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[calc(env(safe-area-inset-bottom)+1.5rem)]">
+        <Hero
+          label="Net worth"
+          amount={formatSigned(netWorth)}
+          colour={balanceColour(netWorth)}
+          amountRef={hero.amountRef}
+          detail={
+            shown.length === 2 && (
+              <>
+                <HeroPart type="saving" total={typeTotal(rows, 'saving')} /> · <HeroPart type="debt" total={typeTotal(rows, 'debt')} />
+              </>
             )
-          }}
-        </ReorderList>
-        {draft && (
-          <DraftEntryRow
-            key={draft.key}
-            budgetId={budget.id}
-            type={draft.type}
-            onDone={() => endDraft(draft.key)}
-          />
-        )}
+          }
+        />
         {rows.length === 0 && !draft && (
-          <p className="p-8 text-center text-muted">
+          <p className="px-8 pt-3 text-center text-sm text-muted">
             Add your savings and debts, like an ISA or a mortgage, with their current values. Tap a value
             to update it; each change is kept in its history.
           </p>
         )}
+        {shown.map((type) => (
+          <EntrySection key={type} type={type} total={typeTotal(rows, type)} onAdd={() => startDraft(type)}>
+            <ReorderList items={ofType(type)} getId={(entry) => entry.id} onReorder={(ordered) => reorderWithin(type, ordered)}>
+              {renderRow}
+            </ReorderList>
+            {draft?.type === type && (
+              <DraftEntryRow
+                key={draft.key}
+                budgetId={budget.id}
+                type={draft.type}
+                onDone={() => endDraft(draft.key)}
+              />
+            )}
+          </EntrySection>
+        ))}
+        <AddLinks types={hidden} onAdd={startDraft} />
       </main>
 
-      <footer className="shrink-0 bg-surface pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_4px_rgba(0,0,0,0.08)]">
-        <div className="grid grid-cols-2 gap-2.5 p-3 pb-2">
-          <button
-            type="button"
-            onClick={() => startDraft('saving')}
-            className="rounded-xl button-fill [--fill:var(--color-income)] py-3.5 font-bold"
-          >
-            Add Saving
-          </button>
-          <button
-            type="button"
-            onClick={() => startDraft('debt')}
-            className="rounded-xl button-fill [--fill:var(--color-expense)] py-3.5 font-bold"
-          >
-            Add Debt
-          </button>
-        </div>
-        <div className="flex items-stretch gap-3 px-4 pb-3">
-          <dl className="grid min-w-0 flex-1 grid-cols-[auto_1fr] content-center gap-x-2 text-sm">
-            <dt className="text-muted">Savings:</dt>
-            <dd className="font-semibold whitespace-nowrap text-income">
-              {formatSigned(typeTotal(rows, 'saving'))}
-            </dd>
-            <dt className="text-muted">Debts:</dt>
-            <dd className="font-semibold whitespace-nowrap text-expense">
-              {formatSigned(-typeTotal(rows, 'debt'))}
-            </dd>
-          </dl>
-          <div className="border-l border-line pl-3 text-right">
-            <p className="text-sm text-muted">Net worth</p>
-            <p className={`text-2xl font-bold whitespace-nowrap ${balanceColour(netWorth)}`}>
-              {formatSigned(netWorth)}
-            </p>
-          </div>
-        </div>
-      </footer>
-
       {sheet?.kind === 'budgetMenu' && (
-        <BudgetMenu budget={budget} onClose={close} onBeforeDelete={() => navigate(backTo, { replace: true })} />
+        <BudgetMenu
+          key={sheet.instance}
+          budget={budget}
+          anchor={sheet.anchor}
+          onClose={close}
+          onRename={() => setRenaming(true)}
+          onBeforeDelete={() => navigate(backTo, { replace: true })}
+        />
       )}
-      {sheet?.kind === 'entryMenu' && openEntry && <EntryMenu entry={openEntry} onClose={close} />}
+      {sheet?.kind === 'entryMenu' && openEntry && <EntryMenu key={sheet.instance} entry={openEntry} anchor={sheet.anchor} onClose={close} onEditNote={() => setEditingNote(openEntry.id)} />}
     </div>
   )
 }
