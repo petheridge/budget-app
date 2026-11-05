@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'rea
 import { entryTypeLabels } from '../lib/entryTypes'
 import { formatUnsigned, typeColour, type EntryType } from '../lib/money'
 import { PlusCircleIcon } from './icons'
+import { usePulse } from './usePulse'
 
 /**
  * The total a budget's screen is about (its balance, or net worth), big at the
@@ -21,6 +22,7 @@ export function Hero({
   detail?: ReactNode
   amountRef: RefObject<HTMLParagraphElement | null>
 }) {
+  usePulse(amount, amountRef)
   return (
     <div className="px-4 pt-6 pb-1 text-center">
       <p className="text-sm text-muted">{label}</p>
@@ -58,12 +60,26 @@ export function useScrolledPast(ref: RefObject<HTMLElement | null>) {
   return past
 }
 
-/** A screen title with the hero's amount under it, once that has scrolled away. */
+/**
+ * A screen title with the hero's amount under it, once that has scrolled away.
+ * The amount rises into view through a mask as the title moves up to make room
+ * (`.header-amount` in index.css), and goes the same way.
+ */
 export function TitleWithAmount({ title, amount }: { title: ReactNode; amount: string | null }) {
+  // Kept while it leaves, so it doesn't vanish before it has moved out of sight.
+  const last = useRef(amount)
+  if (amount !== null) last.current = amount
+  const shown = amount ?? last.current
   return (
     <span className="flex min-w-0 flex-col items-center leading-tight">
       {title}
-      {amount && <span className="text-xs font-semibold whitespace-nowrap opacity-90">{amount}</span>}
+      {shown !== null && (
+        <span className="header-amount" data-shown={amount !== null || undefined} aria-hidden={amount === null || undefined}>
+          <span>
+            <span className="text-xs font-semibold whitespace-nowrap opacity-90">{shown}</span>
+          </span>
+        </span>
+      )}
     </span>
   )
 }
@@ -97,7 +113,7 @@ export function EntrySection({
         <button
           type="button"
           onClick={onAdd}
-          className={`flex min-h-12 w-full items-center gap-2 px-4 text-left font-semibold ${colour}`}
+          className={`flex min-h-12 w-full items-center gap-2 px-4 text-left font-semibold active:bg-bg ${colour}`}
         >
           <PlusCircleIcon />
           Add {noun.toLowerCase()}
@@ -127,7 +143,7 @@ export function AddLinks({ types, onAdd }: { types: EntryType[]; onAdd: (type: E
           key={type}
           type="button"
           onClick={() => onAdd(type)}
-          className={`flex min-h-11 items-center gap-1.5 text-sm font-semibold ${typeColour(type)}`}
+          className={`press flex min-h-11 items-center gap-1.5 text-sm font-semibold ${typeColour(type)}`}
         >
           <PlusCircleIcon />
           Add {entryTypeLabels[type].noun.toLowerCase()}

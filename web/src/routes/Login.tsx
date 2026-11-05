@@ -57,7 +57,7 @@ export function Login() {
         <button
           type="submit"
           disabled={busy}
-          className="rounded-xl button-fill [--fill:var(--color-action)] py-3 font-bold disabled:opacity-60"
+          className="press rounded-xl button-fill [--fill:var(--color-action)] py-3 font-bold disabled:opacity-60"
         >
           Sign in
         </button>

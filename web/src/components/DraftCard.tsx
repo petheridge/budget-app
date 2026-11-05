@@ -74,7 +74,7 @@ export function DraftCard({
   return (
     <div
       ref={cardRef}
-      className="mt-2.5 flex min-h-[68px] items-stretch rounded-xl bg-surface shadow-[0_1px_4px_rgba(0,0,0,0.1)] ring-2 ring-brand"
+      className="enter mt-2.5 flex min-h-[68px] items-stretch rounded-xl bg-surface shadow-[0_1px_4px_rgba(0,0,0,0.1)] ring-2 ring-brand"
     >
       <div className="flex min-w-0 flex-1 flex-col justify-center pr-2 pl-4">
         <div className="flex items-center gap-2">

@@ -298,6 +298,37 @@ test('a ⋮ menu opens from its button, and a tap outside only closes it', async
   await expect(button).toBeFocused()
 })
 
+test('a menu grows from its button and shrinks back into it; reduced motion turns that off', async ({ page }) => {
+  await addBudget(page, unique('Monthly'))
+  await addRow(page, 'Add Expense', 'Water', '7', '3')
+  const button = page.getByRole('button', { name: 'Options for Water' })
+  const menu = page.getByRole('menu')
+
+  await button.tap()
+  await expect(menu).toBeVisible()
+  // Its transform-origin is the middle of the ⋮ button, at the menu's top edge.
+  const origin = await menu.evaluate((el) => getComputedStyle(el).transformOrigin)
+  const b = (await button.boundingBox())!
+  const m = (await menu.boundingBox())!
+  const [x, y] = origin.split(' ').map(parseFloat)
+  expect(Math.abs(m.x + x - (b.x + b.width / 2))).toBeLessThan(3)
+  expect(y).toBe(0)
+
+  // Escape plays the exit (hidden from assistive tech meanwhile), then removes it.
+  const anyMenu = page.locator('[role="menu"]')
+  await page.keyboard.press('Escape')
+  await expect(anyMenu).toHaveClass(/menu-out/)
+  await expect(anyMenu).toHaveCount(0)
+
+  // With reduced motion, nothing animates and the menu goes at once.
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await button.tap()
+  await expect(menu).toBeVisible()
+  expect(await page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running').length)).toBe(0)
+  await page.keyboard.press('Escape')
+  expect(await anyMenu.count()).toBe(0)
+})
+
 test('a menu near the bottom of the screen opens upwards', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 560 })
   const folder = unique('Lots')

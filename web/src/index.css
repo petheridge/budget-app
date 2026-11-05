@@ -102,18 +102,127 @@ body.amount-pad-open main {
   padding-bottom: var(--amount-pad-height, 0px);
 }
 
-/* Menus grow from the button that opened them (components/Menu.tsx), unless the phone is set to reduce motion. */
+/*
+ * Motion. Short and quiet, with no bounce: this is everyday UI.
+ * - Things arriving ease out (fast, then settling); things moving across the
+ *   screen ease in and out.
+ * - Exits are about 20% shorter than entrances.
+ * - Menus grow from the button that opened them, starting at 95%, and shrink
+ *   back into it.
+ * All of it is turned off when the phone is set to reduce motion (at the end).
+ */
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+/* Menus (components/Menu.tsx). Their transform-origin is set to the button that opened them. */
 @keyframes menu-in {
   from {
     opacity: 0;
-    transform: scale(0.9);
+    transform: scale(0.95);
+  }
+}
+@keyframes menu-out {
+  to {
+    opacity: 0;
+    transform: scale(0.95);
   }
 }
 .menu-in {
-  animation: menu-in 150ms ease-out;
+  animation: menu-in 180ms var(--ease-out);
 }
+.menu-out {
+  animation: menu-out 145ms var(--ease-out) forwards;
+}
+
+/* Buttons give a little under the finger. */
+.press {
+  transition: scale 120ms var(--ease-out);
+}
+.press:active {
+  scale: 0.97;
+}
+
+/* Something new appearing in place: a new row or card, a message. */
+@keyframes enter {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+}
+.enter {
+  animation: enter 200ms var(--ease-out) backwards;
+}
+
+/* A list's rows arriving with its screen, one after another (components/ReorderList.tsx). */
+.stagger > * {
+  animation: enter 200ms var(--ease-out) backwards;
+  animation-delay: calc(min(var(--i, 0), 10) * 30ms);
+}
+
+/* The undo and problem messages drop in from the top, and leave a little faster. */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    translate: 0 -8px;
+  }
+}
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    translate: 0 -8px;
+  }
+}
+.toast-in {
+  animation: toast-in 200ms var(--ease-out);
+}
+.toast-out {
+  animation: toast-out 160ms var(--ease-out) forwards;
+}
+
+/* The amount keypad rises from the bottom, as the iPhone keyboard does. */
+@keyframes pad-in {
+  from {
+    translate: 0 100%;
+  }
+}
+.pad-in {
+  animation: pad-in 220ms var(--ease-out);
+}
+
+/*
+ * The balance under a budget's name in the header bar is revealed through a mask,
+ * rising into place, while the row it sits in opens so the name moves up to make room.
+ */
+.header-amount {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 220ms var(--ease-in-out);
+}
+.header-amount > span {
+  overflow: hidden;
+}
+.header-amount > span > span {
+  display: block;
+  translate: 0 100%;
+  transition: translate 220ms var(--ease-in-out);
+}
+.header-amount[data-shown] {
+  grid-template-rows: 1fr;
+}
+.header-amount[data-shown] > span > span {
+  translate: 0 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .menu-in {
-    animation: none;
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .press:active {
+    scale: none;
   }
 }

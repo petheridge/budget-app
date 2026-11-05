@@ -187,6 +187,16 @@ The app follows the phone's light or dark mode (`prefers-color-scheme`). Tokens 
 - Buttons: rounded (about 12px radius), bold white text
 - Respect the iOS safe areas (notch and home indicator) in the header and bottom bars
 
+### Motion
+Quiet and quick, all in `index.css` (`--ease-out`, `--ease-in-out`), and all off when the phone is set to reduce motion.
+- Entrances ease out; moves across the screen (rows making way while reordering, the header balance sliding in) ease in-out. No bounce
+- Menus start at 95% from the exact button tapped (`transform-origin`), in 180ms, and shrink back into it when dismissed. Exits are about 20% shorter than entrances (menu 145ms, Undo message 160ms vs 200ms)
+- Buttons scale to 0.97 while pressed (`press`); list rows highlight instead
+- Rows of a list arrive 30ms apart when its screen opens (`stagger`), not when one is added later. New draft rows and cards fade up (`enter`)
+- The keypad rises from the bottom, except when going straight from one amount to another
+- Totals (hero, footer) pulse briefly when they change, confirming a save (`usePulse`)
+- Nothing tweens while under a finger (dragging, swiping); a swiped row rubber-bands past its ends
+
 ---
 
 ## Out of scope for Phase 1 (do NOT build yet)

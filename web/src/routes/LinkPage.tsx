@@ -95,7 +95,7 @@ export function LinkPage() {
             <button
               type="button"
               onClick={() => void choose('')}
-              className="rounded-xl bg-surface py-3.5 text-base font-semibold text-expense"
+              className="press rounded-xl bg-surface py-3.5 text-base font-semibold text-expense"
             >
               Remove Link
             </button>
