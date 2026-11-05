@@ -10,7 +10,7 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 const verticalOnly: Modifier = ({ transform }) => ({ ...transform, x: 0 })
 
@@ -20,6 +20,22 @@ const verticalOnly: Modifier = ({ transform }) => ({ ...transform, x: 0 })
  * still scrolls the list: moving before the hold completes cancels the drag.
  */
 const HOLD = { delay: 350, tolerance: 8 }
+
+/** Rows making way for the one being dragged move smoothly from place to place. */
+const MAKE_WAY = { duration: 200, easing: 'cubic-bezier(0.77, 0, 0.175, 1)' }
+
+/**
+ * Rows arrive one after another when their screen opens (`.stagger` in index.css),
+ * but not after that: a row added later just appears where it belongs.
+ */
+function useArriving() {
+  const [arriving, setArriving] = useState(true)
+  useEffect(() => {
+    const timer = window.setTimeout(() => setArriving(false), 600)
+    return () => window.clearTimeout(timer)
+  }, [])
+  return arriving
+}
 
 export function ReorderList<T>({
   items,
@@ -34,6 +50,7 @@ export function ReorderList<T>({
   className?: string
   children: (item: T) => ReactNode
 }) {
+  const arriving = useArriving()
   const sensors = useSensors(
     useSensor(TouchSensor, { activationConstraint: HOLD }),
     useSensor(MouseSensor, { activationConstraint: HOLD }),
@@ -55,9 +72,9 @@ export function ReorderList<T>({
       onDragCancel={swallowNextClick}
     >
       <SortableContext items={items.map(getId)} strategy={verticalListSortingStrategy}>
-        <ul className={className}>
-          {items.map((item) => (
-            <Row key={getId(item)} id={getId(item)}>
+        <ul className={`${className ?? ''} ${arriving ? 'stagger' : ''}`}>
+          {items.map((item, i) => (
+            <Row key={getId(item)} id={getId(item)} index={i}>
               {children(item)}
             </Row>
           ))}
@@ -88,8 +105,8 @@ function swallowNextClick() {
   window.setTimeout(stop, 400)
 }
 
-function Row({ id, children }: { id: string; children: ReactNode }) {
-  const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+function Row({ id, index, children }: { id: string; index: number; children: ReactNode }) {
+  const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, transition: MAKE_WAY })
 
   return (
     <li
@@ -97,7 +114,7 @@ function Row({ id, children }: { id: string; children: ReactNode }) {
       {...listeners}
       // No text selection or iOS link preview on a long press, which is how a row is picked up.
       className={`touch-manipulation select-none [-webkit-touch-callout:none] [&_*]:[-webkit-touch-callout:none] ${isDragging ? 'relative z-10 scale-[1.02] opacity-95 shadow-[0_4px_12px_rgba(0,0,0,0.18)]' : ''}`}
-      style={{ transform: CSS.Translate.toString(transform), transition }}
+      style={{ transform: CSS.Translate.toString(transform), transition, ['--i' as string]: index }}
     >
       {children}
     </li>

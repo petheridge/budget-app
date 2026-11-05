@@ -110,6 +110,12 @@ const KEYS: { key: PadKey; label: ReactNode; name: string }[] = [
   { key: '+', label: '+', name: 'plus' },
 ]
 
+/**
+ * When the last keypad closed. Going straight from one amount to another closes
+ * one keypad and opens the next; that one appears in place rather than rising again.
+ */
+let lastClosed = 0
+
 /** The keypad itself, fixed to the bottom of the screen above everything else. */
 function AmountPad({
   text,
@@ -127,6 +133,7 @@ function AmountPad({
   anchor: RefObject<HTMLElement | null>
 }) {
   const padRef = useRef<HTMLDivElement>(null)
+  const [rise] = useState(() => performance.now() - lastClosed > 150)
 
   // Make room to scroll the box being edited above the keypad, then do so if it's hidden.
   useLayoutEffect(() => {
@@ -138,13 +145,16 @@ function AmountPad({
     const frame = requestAnimationFrame(() => {
       const field = anchor.current
       if (!field) return
-      const overlap = field.getBoundingClientRect().bottom - pad.getBoundingClientRect().top + 12
+      // Where its top will be once it has risen into place.
+      const padTop = window.innerHeight - pad.offsetHeight
+      const overlap = field.getBoundingClientRect().bottom - padTop + 12
       const scroller = field.closest<HTMLElement>('main')
       if (overlap > 0 && scroller) scroller.scrollBy({ top: overlap, behavior: 'smooth' })
     })
     return () => {
       cancelAnimationFrame(frame)
       document.body.classList.remove('amount-pad-open')
+      lastClosed = performance.now()
     }
   }, [anchor])
 
@@ -185,7 +195,7 @@ function AmountPad({
       data-amount-pad
       role="group"
       aria-label="Amount keypad"
-      className="fixed inset-x-0 bottom-0 z-50 bg-bg shadow-[0_-2px_8px_rgba(0,0,0,0.12)]"
+      className={`fixed inset-x-0 bottom-0 z-50 bg-bg ${rise ? 'pad-in' : ''} shadow-[0_-2px_8px_rgba(0,0,0,0.12)]`}
     >
       <div className="mx-auto max-w-[600px] px-2 pt-2 pb-[max(env(safe-area-inset-bottom),8px)]">
         <div className="flex min-h-11 items-center justify-between gap-3 px-2 pb-1" aria-live="polite">
@@ -205,7 +215,7 @@ function AmountPad({
                 // Keeps focus where it is, so the row being edited doesn't think it was left.
                 onPointerDown={(e) => e.preventDefault()}
                 onClick={() => onKey(key)}
-                className={`h-12 touch-manipulation rounded-lg text-2xl font-semibold shadow-[0_1px_1px_rgba(0,0,0,0.15)] active:brightness-90 ${operator ? 'bg-folder/60 text-brand' : 'bg-surface text-text'}`}
+                className={`h-12 press touch-manipulation rounded-lg text-2xl font-semibold shadow-[0_1px_1px_rgba(0,0,0,0.15)] active:brightness-90 ${operator ? 'bg-folder/60 text-brand' : 'bg-surface text-text'}`}
               >
                 {label}
               </button>
@@ -215,7 +225,7 @@ function AmountPad({
             type="button"
             onPointerDown={(e) => e.preventDefault()}
             onClick={onDone}
-            className="col-span-4 h-12 touch-manipulation rounded-lg button-fill [--fill:var(--color-brand)] text-lg font-bold active:brightness-90"
+            className="press col-span-4 h-12 touch-manipulation rounded-lg button-fill [--fill:var(--color-brand)] text-lg font-bold active:brightness-90"
           >
             {doneLabel}
           </button>

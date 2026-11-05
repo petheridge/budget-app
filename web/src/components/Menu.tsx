@@ -15,6 +15,8 @@ export interface MenuItem {
 /** Gap kept between the menu and the screen edges, and between it and its button. */
 const MARGIN = 8
 const GAP = 4
+/** How long a dismissed menu takes to shrink back into its button: `.menu-out` in index.css. */
+const EXIT_MS = 145
 
 /**
  * A small menu that opens from the button that was tapped, as ⋯ menus do on iOS.
@@ -41,7 +43,9 @@ export function Menu({
   const safeTopRef = useRef<HTMLDivElement>(null)
   const safeBottomRef = useRef<HTMLDivElement>(null)
   const start = useRef<{ x: number; y: number } | null>(null)
-  const [place, setPlace] = useState<{ top: number; left: number; maxHeight?: number; up: boolean } | null>(null)
+  const [place, setPlace] = useState<{ top: number; left: number; maxHeight?: number; up: boolean; originX: number } | null>(null)
+  // A dismissed menu shrinks back into its button before it goes.
+  const [leaving, setLeaving] = useState(false)
 
   // Measured before the first paint, so it never shows in the wrong place.
   useLayoutEffect(() => {
@@ -55,13 +59,14 @@ export function Menu({
 
     // Right edges line up, since the buttons are on the right; kept on screen either way.
     const left = Math.min(Math.max(button.right - width, MARGIN), viewWidth - width - MARGIN)
+    const originX = button.left + button.width / 2 - left
     const roomBelow = bottom - (button.bottom + GAP)
     const roomAbove = button.top - GAP - top
-    if (height <= roomBelow) setPlace({ top: button.bottom + GAP, left, up: false })
-    else if (height <= roomAbove) setPlace({ top: button.top - GAP - height, left, up: true })
+    if (height <= roomBelow) setPlace({ top: button.bottom + GAP, left, up: false, originX })
+    else if (height <= roomAbove) setPlace({ top: button.top - GAP - height, left, up: true, originX })
     // Taller than either side, which only a very short screen would cause: scroll it.
-    else if (roomBelow >= roomAbove) setPlace({ top: button.bottom + GAP, left, maxHeight: roomBelow, up: false })
-    else setPlace({ top, left, maxHeight: roomAbove, up: true })
+    else if (roomBelow >= roomAbove) setPlace({ top: button.bottom + GAP, left, maxHeight: roomBelow, up: false, originX })
+    else setPlace({ top, left, maxHeight: roomAbove, up: true, originX })
   }, [anchor])
 
   // Callers pass a new function each render; only the latest one matters.
@@ -77,11 +82,25 @@ export function Menu({
     menuRef.current?.querySelector<HTMLElement>('[role^="menuitem"]:not([aria-disabled="true"])')?.focus({ preventScroll: true })
   }, [placed])
 
-  useEffect(() => {
-    const dismiss = () => {
-      onCloseRef.current()
-      anchor.focus({ preventScroll: true })
+  const leaveTimer = useRef(0)
+  useEffect(() => () => window.clearTimeout(leaveTimer.current), [])
+
+  // Closing by tapping outside or Escape (choosing an item acts at once instead).
+  const dismissRef = useRef(() => {})
+  dismissRef.current = () => {
+    anchor.focus({ preventScroll: true })
+    if (leaving) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      onClose()
+      return
     }
+    setLeaving(true)
+    leaveTimer.current = window.setTimeout(() => onCloseRef.current(), EXIT_MS)
+  }
+  const dismiss = () => dismissRef.current()
+
+  useEffect(() => {
+    const dismiss = () => dismissRef.current()
     // Escape works wherever focus is, as a tap on the ⋮ may not have moved it.
     const onKey = (event: globalThis.KeyboardEvent) => {
       if (event.key === 'Escape') dismiss()
@@ -95,11 +114,6 @@ export function Menu({
       window.removeEventListener('resize', close)
     }
   }, [anchor])
-
-  function dismiss() {
-    onClose()
-    anchor.focus({ preventScroll: true })
-  }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'Tab') {
@@ -131,7 +145,8 @@ export function Menu({
     <div className="fixed inset-0 z-40">
       <div
         data-testid="menu-backdrop"
-        className="absolute inset-0 touch-none"
+        // While it leaves, taps already reach what's underneath.
+        className={`absolute inset-0 touch-none ${leaving ? 'pointer-events-none' : ''}`}
         onPointerDown={onBackdropPointerDown}
         onPointerMove={onBackdropPointerMove}
         onClick={dismiss}
@@ -143,10 +158,17 @@ export function Menu({
         role="menu"
         aria-label={label}
         onKeyDown={onKeyDown}
-        className={`menu-in absolute w-[250px] max-w-[calc(100vw-16px)] overflow-y-auto overscroll-contain rounded-xl bg-raised shadow-[0_10px_30px_rgba(0,0,0,0.22)] ring-1 ring-line ${place?.up ? 'origin-bottom-right' : 'origin-top-right'}`}
+        aria-hidden={leaving || undefined}
+        className={`${leaving ? 'menu-out pointer-events-none' : 'menu-in'} absolute w-[250px] max-w-[calc(100vw-16px)] overflow-y-auto overscroll-contain rounded-xl bg-raised shadow-[0_10px_30px_rgba(0,0,0,0.22)] ring-1 ring-line`}
         style={
           place
-            ? { top: place.top, left: place.left, maxHeight: place.maxHeight }
+            ? {
+                top: place.top,
+                left: place.left,
+                maxHeight: place.maxHeight,
+                // Grows out of, and shrinks back into, the button that opened it.
+                transformOrigin: `${place.originX}px ${place.up ? '100%' : '0'}`,
+              }
             : { top: 0, left: 0, visibility: 'hidden' }
         }
       >

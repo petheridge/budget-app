@@ -82,6 +82,17 @@ export function HistoryPage() {
 const REVEAL = 88
 
 /**
+ * Past either end of its travel a row keeps following the finger, but less and
+ * less, as iOS lists rubber-band, rather than stopping dead.
+ */
+function rubberBand(offset: number): number {
+  const band = (over: number) => (1 - 1 / ((over * 0.55) / 120 + 1)) * 120
+  if (offset > 0) return band(offset)
+  if (offset < -REVEAL) return -REVEAL - band(-REVEAL - offset)
+  return offset
+}
+
+/**
  * A row that slides left under a finger (or mouse) to show a Delete button
  * behind it, as in iOS lists. A mostly vertical move scrolls instead. Tapping the
  * open row, or swiping it back, closes it.
@@ -127,7 +138,7 @@ function SwipeToDelete({
         g.mode = 'scroll'
       }
     }
-    if (g.mode === 'swipe') setDrag(Math.max(-REVEAL * 1.4, Math.min(0, g.from + dx)))
+    if (g.mode === 'swipe') setDrag(rubberBand(g.from + dx))
   }
 
   function onPointerUp() {
@@ -164,7 +175,7 @@ function SwipeToDelete({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        className={`relative flex touch-pan-y items-center justify-between gap-3 bg-surface px-4 py-3 select-none ${drag === null ? 'transition-transform duration-200' : ''}`}
+        className={`relative flex touch-pan-y items-center justify-between gap-3 bg-surface px-4 py-3 select-none ${drag === null ? 'transition-transform duration-200 ease-(--ease-out)' : ''}`}
         style={{ transform: `translateX(${offset}px)` }}
       >
         {children}

@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { DataProvider, useData } from '../lib/data'
 import { pb } from '../lib/pb'
@@ -21,6 +21,7 @@ export function RequireAuth() {
 
 function Screens() {
   const { status, problem, clearProblem, refresh, undoLabel, undoDelete } = useData()
+  const undo = useLeaving(problem ? '' : undoLabel)
 
   if (status === 'loading') {
     return <p className="p-8 text-center text-muted">Loading…</p>
@@ -32,7 +33,7 @@ function Screens() {
         <button
           type="button"
           onClick={() => void refresh()}
-          className="rounded-xl button-fill [--fill:var(--color-action)] px-6 py-3 font-bold"
+          className="press rounded-xl button-fill [--fill:var(--color-action)] px-6 py-3 font-bold"
         >
           Try again
         </button>
@@ -46,17 +47,18 @@ function Screens() {
         <button
           type="button"
           onClick={clearProblem}
-          className="fixed inset-x-4 top-[calc(env(safe-area-inset-top)+4rem)] z-50 mx-auto max-w-[568px] rounded-xl bg-text p-3 text-left text-sm text-surface shadow-lg"
+          className="toast-in fixed inset-x-4 top-[calc(env(safe-area-inset-top)+4rem)] z-50 mx-auto max-w-[568px] rounded-xl bg-text p-3 text-left text-sm text-surface shadow-lg"
         >
           {problem}
         </button>
       )}
-      {undoLabel && !problem && (
+      {undo.text && (
         <div
           role="status"
-          className="fixed inset-x-4 top-[calc(env(safe-area-inset-top)+4rem)] z-50 mx-auto flex max-w-[568px] items-center gap-3 rounded-xl bg-text py-1.5 pr-1.5 pl-4 text-sm text-surface shadow-lg"
+          aria-hidden={undo.leaving || undefined}
+          className={`${undo.leaving ? 'toast-out pointer-events-none' : 'toast-in'} fixed inset-x-4 top-[calc(env(safe-area-inset-top)+4rem)] z-50 mx-auto flex max-w-[568px] items-center gap-3 rounded-xl bg-text py-1.5 pr-1.5 pl-4 text-sm text-surface shadow-lg`}
         >
-          <span className="min-w-0 flex-1 truncate">{undoLabel}</span>
+          <span className="min-w-0 flex-1 truncate">{undo.text}</span>
           <button type="button" onClick={undoDelete} className="rounded-lg px-3 py-2 font-bold text-folder">
             Undo
           </button>
@@ -64,4 +66,32 @@ function Screens() {
       )}
     </>
   )
+}
+
+/** How long a message takes to leave: `.toast-out` in index.css. */
+const LEAVE_MS = 160
+
+/**
+ * A message that stays a moment after it's cleared, so it can leave rather than
+ * vanish. A new message replaces a leaving one at once.
+ */
+function useLeaving(text: string) {
+  const [shown, setShown] = useState(text)
+  const [leaving, setLeaving] = useState(false)
+  const timer = useRef(0)
+  useEffect(() => {
+    window.clearTimeout(timer.current)
+    if (text) {
+      setShown(text)
+      setLeaving(false)
+    } else if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setShown('')
+    } else {
+      setLeaving(true)
+      timer.current = window.setTimeout(() => setShown(''), LEAVE_MS)
+    }
+    return () => window.clearTimeout(timer.current)
+  }, [text])
+  // The first render after a new message, before the effect catches up.
+  return text ? { text, leaving: false } : { text: shown, leaving }
 }

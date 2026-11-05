@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { BudgetMenu } from '../components/BudgetMenu'
 import { FolderMenu } from '../components/FolderMenu'
@@ -15,6 +15,7 @@ import { RenameInput } from '../components/RenameInput'
 import { ReorderList } from '../components/ReorderList'
 import { DraftCard } from '../components/DraftCard'
 import { useOverlay } from '../components/useOverlay'
+import { usePulse } from '../components/usePulse'
 import { useData } from '../lib/data'
 import { balanceColour, formatSigned } from '../lib/money'
 import { isTracker, pb, type BudgetKind } from '../lib/pb'
@@ -137,7 +138,7 @@ export function BudgetList() {
             type="button"
             aria-haspopup="menu"
             onClick={(event) => setSheet({ kind: 'addMenu', anchor: event.currentTarget })}
-            className="w-full rounded-xl button-fill [--fill:var(--color-action)] py-3.5 font-bold"
+            className="press w-full rounded-xl button-fill [--fill:var(--color-action)] py-3.5 font-bold"
           >
             Add Budget
           </button>
@@ -145,9 +146,7 @@ export function BudgetList() {
         {showBalance && (
           <div className="flex items-center justify-between gap-2 px-4 pb-3">
             <span className="text-muted">{folder ? 'Folder Balance:' : 'All Budgets Balance:'}</span>
-            <span className={`text-2xl font-bold whitespace-nowrap ${balanceColour(total)}`}>
-              {formatSigned(total)}
-            </span>
+            <LevelTotal total={total} />
           </div>
         )}
       </footer>
@@ -257,5 +256,16 @@ function CardRow({
         <DotsIcon />
       </button>
     </div>
+  )
+}
+
+/** The footer's total, which pulses when it changes. */
+function LevelTotal({ total }: { total: number }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  usePulse(total, ref)
+  return (
+    <span ref={ref} className={`text-2xl font-bold whitespace-nowrap ${balanceColour(total)}`}>
+      {formatSigned(total)}
+    </span>
   )
 }
