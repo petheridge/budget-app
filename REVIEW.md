@@ -80,6 +80,76 @@ Each item is one small commit.
 - [ ] **13. Turn on sign-in rate limiting (F10).** Do this before setting up remote access. Done when a new migration enables it and a burst of wrong passwords gets HTTP 429.
 - [ ] **14. Keyboard reordering (F14).** Optional. Done when a row can be moved with Space and the arrow keys.
 
+## Suggested features
+
+Features worth adding that an agent could build and test on its own. Each is small, uses the app's existing patterns (menus, editing in place, full screens, Undo), needs no new dependency, and can be proven with the end-to-end suite in headless Chromium. None was built or prototyped for this review; the "what it touches" notes come from reading the code.
+
+Do backlog items 1, 2 and 4 first: every feature below writes through `data.tsx`, and should be built on a write path that reports failures.
+
+Per the project conventions, each feature also needs an end-to-end test and an update to `CLAUDE.md` (the screens section, and the out-of-scope list where it names the feature).
+
+| ID | Feature | Why it's worth it | Effort | Schema change |
+|---|---|---|---|---|
+| N1 | Duplicate a budget | Saves retyping every entry each month | S | No |
+| N2 | "Not connected" notice | Tells you *before* you type that a change won't save | S | No |
+| N3 | Export as CSV | A copy of your data you can read without the app | S–M | No |
+| N4 | Move an entry to another budget | Fixes an entry added in the wrong place without delete and retype | S | No |
+| N5 | Move a folder into another folder | The data model allows subfolders, but a folder can't be moved once made | S | No |
+| N6 | Paid status | Fudget's tick-off-as-you-pay; the biggest missing piece of the original | M | Yes |
+
+### N1. Duplicate a budget
+
+- **What:** a **Duplicate** choice in a budget's ⋮ menu. It adds "*Name* copy" at the end of the same folder with every entry copied (name, amount, type, note, order, link), and opens its name for renaming in place.
+- **Scope limit:** regular budgets only. A copied savings & debts budget would need its history copied or invented, and neither is right.
+- **Touches:** a `duplicateBudget` action in `web/src/lib/data.tsx` (next to `createBudget`, line 265), one item in `web/src/components/BudgetMenu.tsx:76-108`.
+- **Watch for:** the copy is one request per entry. If one fails part-way, report it and leave what was copied rather than trying to roll back; Delete with Undo already cleans up.
+- **Done when:** a test duplicates a budget with two incomes, an expense with a note and a linked expense, and the copy shows the same rows, order, balance and "→" link; the original is unchanged.
+
+### N2. "Not connected" notice
+
+- **What:** a thin bar under the header, "Not connected. Changes won't be saved.", while the app has no connection to the server; it clears on reconnect. The existing refetch on reconnect (`data.tsx:144`) stays as it is.
+- **Scope limit:** a notice only. No queue of offline changes: that is a large feature with conflict handling, and not justified for a home LAN.
+- **Touches:** connection state in `data.tsx` (the PocketBase client reports realtime disconnects, and the browser's `online`/`offline` events cover the rest), rendered in `web/src/components/RequireAuth.tsx` beside the existing messages.
+- **Done when:** a test uses Playwright's `context.setOffline(true)`, sees the bar, goes back online and sees it go.
+
+### N3. Export as CSV
+
+- **What:** **Export as CSV** in a budget's menu (that budget's entries) and in the root menu (everything). Columns: folder path, budget, kind, type, name, amount, note; for savings and debts, one row per recorded value with its date.
+- **Touches:** a pure `toCsv` function in a new `web/src/lib/csv.ts` with unit tests; menu items in `BudgetMenu.tsx` and `web/src/routes/BudgetList.tsx:166-176`.
+- **Watch for:**
+  - Amounts must be written from integer pence as text (`1234.56`), reusing `penceToInput` (`money.ts:87`), never by dividing.
+  - Quote fields containing commas, quotes or line breaks. Prefix a name or note that starts with `=`, `+`, `-` or `@` with a `'` so a spreadsheet doesn't run it as a formula.
+  - **Not checkable by an agent:** saving a file from an iPhone home-screen app. A plain download link works in Chromium but is unreliable there; the share sheet (`navigator.share` with a file) is the usual answer. An agent can build both paths, but only you can confirm it on the phone.
+- **Done when:** unit tests cover quoting, the formula prefix, £0.00 and large amounts; an end-to-end test triggers the export and checks the downloaded file's rows.
+
+### N4. Move an entry to another budget
+
+- **What:** **Move to budget** in an entry's ⋮ menu, opening a submenu of budgets of the same kind (a saving can't move into a regular budget), with a ✓ on the current one, as **Move to folder** already works for budgets.
+- **Touches:** a `moveEntry` action in `data.tsx` that sets `budget` and puts the entry at the end of its section; a submenu step in `web/src/components/EntryMenu.tsx`, copying the pattern at `BudgetMenu.tsx:28-52`.
+- **Scope limit:** move only. Copying an entry is a different feature with less value once N1 exists.
+- **Done when:** a test moves an expense between two budgets and both balances change by its amount; a saving's history and any link pointing at it survive the move.
+
+### N5. Move a folder into another folder
+
+- **What:** **Move to folder** in a folder's ⋮ menu, reusing the budget's submenu.
+- **Touches:** a `moveFolder` action in `data.tsx`; `web/src/components/FolderMenu.tsx:27-46`.
+- **Watch for:** a folder must not be offered itself or anything inside it as a destination, or it would vanish from every screen. `folderPath` (`selectors.ts:75-85`) already guards against loops when *reading*; this needs the same care when *writing*, with a unit test.
+- **Done when:** a test moves a folder into another and back to the top level, and the menu for a folder with a subfolder lists neither itself nor that subfolder.
+
+### N6. Paid status
+
+- **What:** mark a budget entry as paid, and show how much is still to pay.
+- **Why it's last:** it is the only one needing a migration (a `paid` yes/no field on `entries`) and real design decisions, and the brief lists it as out of scope for Phase 1. An agent can build it independently only once open question 7 is answered.
+- **Touches:** a new migration; a tick on each row in `web/src/routes/BudgetDetail.tsx:70-105`; a "paid" total in `money.ts` with unit tests; the hero line in `web/src/components/Sections.tsx`.
+- **Done when:** ticking an expense updates a "left to pay" figure, the state survives a reload and appears on a second signed-in browser, and Balance itself is unchanged.
+
+### Considered and not recommended
+
+- **Charts of savings history, search, sorting by name, repeating entries, carry-over balances:** each adds a lasting mode or a new screen for little gain at household scale. Sort by amount and press-and-hold already cover ordering.
+- **Offline editing with sync:** see N2.
+- **Importing Fudget data:** the export format isn't in the repository, so an agent would be guessing.
+- **Passcode or Face ID lock:** can't be done properly in a web app, and can't be tested off the phone.
+
 ## Open questions
 
 1. **Clearing an amount (F3):** should emptying an existing amount save £0.00, or leave it unchanged? The brief is explicit only for new rows.
@@ -88,3 +158,5 @@ Each item is one small commit.
 4. **Backups:** the NAS is the only copy. Is a second copy elsewhere (another disk or off-site) wanted, or is the NAS itself backed up?
 5. **Server-side rules (F15):** is it fine for entry type and budget kind to be enforced by the app only?
 6. **Keyboard reordering (F14):** does anyone use the app from a computer enough for this to matter?
+7. **Paid status (N6):** if you want it, three things need deciding first. Does it apply to income as well as expenses? Where does the tick go on a row that already has a tappable name, amount and ⋮? And is the extra figure "left to pay", "paid so far", or both?
+8. **Which features, if any?** N1 to N5 are independent of each other and can be taken in any order or not at all. My recommendation is N1 and N2 first: N1 is the one you'd use every month, and N2 completes the fix for silent failed saves.
