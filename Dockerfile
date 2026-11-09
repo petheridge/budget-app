@@ -23,6 +23,9 @@ RUN apk add --no-cache ca-certificates \
 COPY pocketbase/pb_migrations /pb/pb_migrations
 COPY --from=web /web/dist /pb/pb_public
 EXPOSE 8090
+# `docker compose ps` shows the app as healthy once PocketBase answers.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -qO /dev/null http://127.0.0.1:8090/api/health || exit 1
 # serve applies pb_migrations on startup. Automigrate is off so that admin UI changes can't write
 # migration files into the container: schema changes only come from git. Mount a volume at /pb/pb_data.
 CMD ["/pb/pocketbase", "serve", "--http=0.0.0.0:8090", "--dir=/pb/pb_data", "--publicDir=/pb/pb_public", "--migrationsDir=/pb/pb_migrations", "--automigrate=false"]

@@ -2,6 +2,7 @@ node_modules/
 web/dist/
 web/dev-dist/
 *.local
+*.tsbuildinfo
 .env
 
 # PocketBase: binary is fetched by pocketbase/install.sh, data is never committed

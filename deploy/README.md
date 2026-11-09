@@ -108,7 +108,11 @@ tail /opt/budget/logs/backup.log
 ls -lh /mnt/nas/budget-backups
 ```
 
-Backup failures only appear in `logs/backup.log`, so look at it now and then. `update.sh` and `backup.sh` take turns using a lock, so neither can disturb the other.
+A failed backup is written to `logs/backup.log`. If none has succeeded for 48 hours, `update.sh` also writes a `WARNING` line to `logs/update.log` every time it runs, so check either log now and then. `update.sh` and `backup.sh` take turns using a lock, so neither can disturb the other.
+
+Before starting a new version, `update.sh` runs a backup of its own, because a new version can change the database when it starts. These are named `pre-update-…` and the newest 5 are kept (`PRE_UPDATE_KEEP`), separately from the 14 nightly ones. If that backup fails, for example because the NAS isn't mounted, the update is skipped and tried again 5 minutes later, with `UPDATE SKIPPED` in `logs/update.log`.
+
+`docker compose ps` shows the app as `healthy` once it's answering.
 
 ## Roll back to an earlier version
 
@@ -120,7 +124,7 @@ IMAGE_TAG=<full-commit-sha>
 
 Apply it straight away with `/opt/budget/update.sh`. The pin stays until you change it, so **automatic updates stop**. When a fix has shipped, set `IMAGE_TAG=latest` to resume them.
 
-An older image doesn't undo database changes made by newer migrations. If the version you're leaving changed the schema, restore a backup from before it too.
+An older image doesn't undo database changes made by newer migrations. If the version you're leaving changed the schema, restore a backup from before it too: the `pre-update-…` archive made just before that version started is the one to use.
 
 ## Restore a backup
 

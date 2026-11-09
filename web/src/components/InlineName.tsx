@@ -9,13 +9,12 @@ import { RenameInput } from './RenameInput'
  * name puts the old one back.
  */
 export function InlineName({ entry, className }: { entry: Entry; className: string }) {
-  const { updateEntry } = useData()
+  const { updateEntry, report } = useData()
   const [editing, setEditing] = useState(false)
 
-  async function finish(name: string | null) {
+  function finish(name: string | null) {
     setEditing(false)
-    if (!name) return
-    await updateEntry(entry.id, { name, amount_pence: entry.amount_pence, type: entry.type, note: entry.note })
+    if (name) report('save the name', updateEntry(entry.id, { name }))
   }
 
   if (editing) {
@@ -23,7 +22,7 @@ export function InlineName({ entry, className }: { entry: Entry; className: stri
       <RenameInput
         value={entry.name}
         label={`Name for ${entry.name}`}
-        onDone={(name) => void finish(name)}
+        onDone={finish}
         className={`bg-bg ring-2 ring-brand ring-inset ${className}`}
       />
     )

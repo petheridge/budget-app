@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { csvFileName, exportRows, saveFile, toCsv } from '../lib/csv'
 import { useData } from '../lib/data'
 import { isTracker, type Budget } from '../lib/pb'
 import { entriesIn, folderPath, sortByAmount } from '../lib/selectors'
@@ -9,6 +10,7 @@ export function BudgetMenu({
   anchor,
   onClose,
   onRename,
+  onDuplicated,
   onBeforeDelete,
 }: {
   budget: Budget
@@ -17,9 +19,12 @@ export function BudgetMenu({
   onClose: () => void
   /** Rename is done in place, by whatever shows the name. */
   onRename: () => void
+  /** Given the copy's id once it exists, to show it with its name ready to change. */
+  onDuplicated?: (id: string) => void
   onBeforeDelete?: () => void
 }) {
-  const { deleteBudget, setBudgetKind, moveBudget, report, entries, folders, reorderEntries } = useData()
+  const { deleteBudget, duplicateBudget, setBudgetKind, moveBudget, report, budgets, entries, folders, snapshots, reorderEntries } =
+    useData()
   // A budget's type can only change while it's empty, so no entry has the wrong kind of type.
   const isEmpty = !entries.some((e) => e.budget === budget.id)
   const rows = entriesIn(entries, budget.id)
@@ -84,12 +89,32 @@ export function BudgetMenu({
           },
         },
         { label: 'Move to folder', onSelect: () => setStep('move') },
+        // Savings & debts can't be copied: their history would have to be copied or made up.
+        ...(isTracker(budget)
+          ? []
+          : [
+              {
+                label: 'Duplicate',
+                onSelect: () => {
+                  onClose()
+                  report('copy the whole budget', duplicateBudget(budget.id).then(onDuplicated))
+                },
+              },
+            ]),
+        {
+          label: 'Export as CSV',
+          onSelect: () => {
+            onClose()
+            const csv = toCsv(exportRows({ folders, budgets, entries, snapshots }, budget.id))
+            report('export the budget', saveFile(csvFileName(budget.name), csv))
+          },
+        },
         ...(isEmpty
           ? [
               {
                 label: isTracker(budget) ? 'Change to Budget' : 'Change to Savings & debts',
                 onSelect: () => {
-                  void setBudgetKind(budget.id, isTracker(budget) ? 'budget' : 'tracker')
+                  report('change the budget', setBudgetKind(budget.id, isTracker(budget) ? 'budget' : 'tracker'))
                   onClose()
                 },
               },

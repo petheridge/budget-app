@@ -84,6 +84,31 @@ export function folderPath(folders: Folder[], folder: Folder): string {
   return names.join(' / ')
 }
 
+/**
+ * The folders a folder can be moved into: any but itself and the folders inside
+ * it, which would cut it off from the root and hide it from every screen.
+ */
+export function folderDestinations(folders: Folder[], folder: Folder): Folder[] {
+  const inside = new Set([folder.id])
+  // Each pass takes in the next level down; `inside` stops a loop in bad data going round forever.
+  for (let found = true; found; ) {
+    found = false
+    for (const f of folders) {
+      if (!inside.has(f.id) && inside.has(f.parent)) {
+        inside.add(f.id)
+        found = true
+      }
+    }
+  }
+  return folders.filter((f) => !inside.has(f.id))
+}
+
+/** A budget's name with its folders, e.g. "Monthly / March", for picking one from a list. */
+export function budgetPath(folders: Folder[], budget: Budget): string {
+  const folder = folders.find((f) => f.id === budget.folder)
+  return folder ? `${folderPath(folders, folder)} / ${budget.name}` : budget.name
+}
+
 /** The saving or debt a budget expense is linked to, if it still exists. */
 export function linkTarget(entry: Entry, entries: Entry[], budgets: Budget[]): Entry | undefined {
   if (!entry.link) return undefined

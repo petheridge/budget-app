@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { useConnected } from '../lib/data'
 import { FolderIcon } from './icons'
 import { RenameInput } from './RenameInput'
 
@@ -18,6 +19,7 @@ export function Header({
   back?: Back
   actions?: ReactNode
 }) {
+  const connected = useConnected()
   return (
     <header className="shrink-0 bg-bar pt-[env(safe-area-inset-top)] text-white">
       <div className="grid h-14 grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)] items-center gap-1 px-2">
@@ -35,6 +37,11 @@ export function Header({
         </h1>
         <div className="flex justify-end">{actions}</div>
       </div>
+      {!connected && (
+        <p role="status" className="bg-black/25 px-3 py-1 text-center text-xs font-semibold">
+          Not connected. Changes won’t be saved.
+        </p>
+      )}
     </header>
   )
 }

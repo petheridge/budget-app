@@ -55,7 +55,8 @@ export function Menu({
     const viewHeight = window.visualViewport?.height ?? window.innerHeight
     const top = (safeTopRef.current?.offsetHeight ?? 0) + MARGIN
     const bottom = viewHeight - (safeBottomRef.current?.offsetHeight ?? 0) - MARGIN
-    const { offsetWidth: width, offsetHeight: height } = menu
+    // Its full height, even if an earlier placing (the menu a submenu replaced) capped it.
+    const { offsetWidth: width, scrollHeight: height } = menu
 
     // Right edges line up, since the buttons are on the right; kept on screen either way.
     const left = Math.min(Math.max(button.right - width, MARGIN), viewWidth - width - MARGIN)
@@ -67,7 +68,8 @@ export function Menu({
     // Taller than either side, which only a very short screen would cause: scroll it.
     else if (roomBelow >= roomAbove) setPlace({ top: button.bottom + GAP, left, maxHeight: roomBelow, up: false, originX })
     else setPlace({ top, left, maxHeight: roomAbove, up: true, originX })
-  }, [anchor])
+    // Placed again when a submenu takes its place: that may be much longer, such as a list of folders.
+  }, [anchor, label, items.length])
 
   // Callers pass a new function each render; only the latest one matters.
   const onCloseRef = useRef(onClose)

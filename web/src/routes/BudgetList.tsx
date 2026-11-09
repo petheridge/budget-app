@@ -16,6 +16,7 @@ import { ReorderList } from '../components/ReorderList'
 import { DraftCard } from '../components/DraftCard'
 import { useOverlay } from '../components/useOverlay'
 import { usePulse } from '../components/usePulse'
+import { csvFileName, exportRows, saveFile, toCsv } from '../lib/csv'
 import { useData } from '../lib/data'
 import { balanceColour, formatSigned } from '../lib/money'
 import { isTracker, pb, type BudgetKind } from '../lib/pb'
@@ -31,7 +32,7 @@ type Sheet =
 export function BudgetList() {
   const { id } = useParams()
   const folderId = id ?? ''
-  const { folders, budgets, entries, createBudget, createFolder, reorderCards, renameBudget, renameFolder, report } =
+  const { folders, budgets, entries, snapshots, createBudget, createFolder, reorderCards, renameBudget, renameFolder, report } =
     useData()
   const { sheet, open: setSheet, close } = useOverlay<Sheet>()
   // The card whose name is being edited in place, if any.
@@ -170,7 +171,18 @@ export function BudgetList() {
           label="Menu"
           title={pb.authStore.record?.email ? `Signed in as ${pb.authStore.record.email}` : undefined}
           onClose={close}
-          items={[{ label: 'Sign out', onSelect: () => pb.authStore.clear() }]}
+          items={[
+            {
+              label: 'Export as CSV',
+              hint: 'Every budget, as a spreadsheet file',
+              onSelect: () => {
+                close()
+                const csv = toCsv(exportRows({ folders, budgets, entries, snapshots }))
+                report('export the budgets', saveFile(csvFileName('budgets'), csv))
+              },
+            },
+            { label: 'Sign out', onSelect: () => pb.authStore.clear() },
+          ]}
         />
       )}
       {sheet?.kind === 'cardMenu' && openCard?.kind === 'budget' && (
@@ -180,6 +192,7 @@ export function BudgetList() {
           anchor={sheet.anchor}
           onClose={close}
           onRename={() => setRenaming(openCard.key)}
+          onDuplicated={(copy) => setRenaming(`budget:${copy}`)}
         />
       )}
       {sheet?.kind === 'cardMenu' && openCard?.kind === 'folder' && (
