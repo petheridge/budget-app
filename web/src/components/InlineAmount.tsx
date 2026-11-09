@@ -27,15 +27,15 @@ export function InlineAmount({
   children: ReactNode
   className?: string
 }) {
-  const { updateEntry } = useData()
+  const { updateEntry, report } = useData()
   const [text, setText] = useState('')
   const wrapperRef = useRef<HTMLDivElement>(null)
 
-  async function save(pence: number | null) {
+  function save(pence: number | null) {
     onClose()
-    const amount_pence = pence ?? 0
-    if (amount_pence === entry.amount_pence) return
-    await updateEntry(entry.id, { name: entry.name, amount_pence, type: entry.type, note: entry.note })
+    // An emptied keypad leaves the amount as it was, rather than saving £0.00.
+    if (pence === null || pence === entry.amount_pence) return
+    report('save the amount', updateEntry(entry.id, { amount_pence: pence }))
   }
 
   // Tapping anywhere outside the amount and its keypad saves it, like Done.
@@ -51,7 +51,7 @@ export function InlineAmount({
       const result = evaluateAmount(textRef.current)
       // A sum that doesn't work out is left unsaved.
       if (result && !result.ok) onClose()
-      else void saveRef.current(result ? result.pence : null)
+      else saveRef.current(result ? result.pence : null)
     }
     document.addEventListener('pointerdown', onPointerDown, true)
     return () => document.removeEventListener('pointerdown', onPointerDown, true)
@@ -70,7 +70,7 @@ export function InlineAmount({
           setText(penceToInput(entry.amount_pence))
           onOpen()
         }}
-        onDone={(pence) => void save(pence)}
+        onDone={save}
         display={children}
         className={`rounded-md px-1.5 py-1 text-right ${className}`}
       />

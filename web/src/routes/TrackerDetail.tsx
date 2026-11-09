@@ -4,11 +4,9 @@ import { BudgetMenu } from '../components/BudgetMenu'
 import { ChangeText, formatDay } from '../components/Change'
 import { DraftEntryRow } from '../components/DraftEntryRow'
 import { EntryMenu } from '../components/EntryMenu'
+import { EntryRow } from '../components/EntryRow'
 import { EditableTitle, Header, HeaderButton } from '../components/Header'
-import { InlineAmount } from '../components/InlineAmount'
-import { InlineName } from '../components/InlineName'
-import { InlineNote } from '../components/InlineNote'
-import { DotsIcon, MenuIcon } from '../components/icons'
+import { MenuIcon } from '../components/icons'
 import { ReorderList } from '../components/ReorderList'
 import { AddLinks, EntrySection, Hero, HeroPart, TitleWithAmount, useHero } from '../components/Sections'
 import { useOverlay } from '../components/useOverlay'
@@ -64,28 +62,14 @@ export function TrackerDetail({ budget }: { budget: Budget }) {
   const openEntry = sheet && sheet.kind !== 'budgetMenu' ? rows.find((e) => e.id === sheet.id) : undefined
 
   const renderRow = (entry: Entry) => {
-    const colour = typeColour(entry.type)
     const moved = changeSincePrevious(entry, snapshots)
     return (
-      <div className="flex min-h-[54px] items-stretch border-b border-line bg-surface">
-        <div className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-2 pl-4">
-          <div className="min-w-0 flex-1">
-            <InlineName entry={entry} className={`font-semibold ${colour}`} />
-            <InlineNote
-              entry={entry}
-              editing={editingNote === entry.id}
-              onDone={() => setEditingNote(null)}
-            />
-            <LinkedFrom links={linkedInto(entry, entries, budgets)} budgets={budgets} />
-          </div>
-          <InlineAmount
-            entry={entry}
-            open={editingAmount === entry.id}
-            onOpen={() => setEditingAmount(entry.id)}
-            onClose={closeAmount}
-            className="font-semibold"
-          >
-            <span className={`block whitespace-nowrap ${colour}`}>{formatUnsigned(entry.amount_pence)}</span>
+      <EntryRow
+        entry={entry}
+        under={<LinkedFrom links={linkedInto(entry, entries, budgets)} budgets={budgets} />}
+        amount={
+          <>
+            <span className={`block whitespace-nowrap ${typeColour(entry.type)}`}>{formatUnsigned(entry.amount_pence)}</span>
             {moved && (
               <span className="block whitespace-nowrap">
                 <ChangeText
@@ -95,18 +79,16 @@ export function TrackerDetail({ budget }: { budget: Budget }) {
                 />
               </span>
             )}
-          </InlineAmount>
-        </div>
-        <button
-          type="button"
-          aria-label={`Options for ${entry.name}`}
-          aria-haspopup="menu"
-          onClick={(event) => setSheet({ kind: 'entryMenu', id: entry.id, anchor: event.currentTarget })}
-          className="my-3 flex w-10 shrink-0 items-center justify-center border-l border-line text-brand"
-        >
-          <DotsIcon />
-        </button>
-      </div>
+          </>
+        }
+        amountClassName="font-semibold"
+        editingNote={editingNote === entry.id}
+        onNoteDone={() => setEditingNote(null)}
+        amountOpen={editingAmount === entry.id}
+        onAmountOpen={() => setEditingAmount(entry.id)}
+        onAmountClose={closeAmount}
+        onMenu={(anchor) => setSheet({ kind: 'entryMenu', id: entry.id, anchor })}
+      />
     )
   }
 
@@ -118,6 +100,7 @@ export function TrackerDetail({ budget }: { budget: Budget }) {
             amount={hero.scrolledPast && !renaming ? formatSigned(netWorth) : null}
             title={
               <EditableTitle
+                key={budget.id}
                 name={budget.name}
                 renaming={renaming}
                 onDone={(name) => {

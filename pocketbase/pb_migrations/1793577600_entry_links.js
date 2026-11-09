@@ -1,7 +1,7 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// A budget expense can be linked to a saving or debt it pays into, so Catch Up can
-// suggest an expected value. Not required: deleting the saving or debt clears it.
+// A budget expense can be linked to a saving or debt it pays into, shown as a label
+// on both. Not required: deleting the saving or debt clears it.
 migrate(
   (app) => {
     const entries = app.findCollectionByNameOrId("entries");

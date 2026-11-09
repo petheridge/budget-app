@@ -13,6 +13,7 @@ export function Hero({
   amount,
   colour,
   detail,
+  extra,
   amountRef,
 }: {
   label: string
@@ -20,6 +21,8 @@ export function Hero({
   colour: string
   /** Only for a budget with both kinds of entry; otherwise it would just repeat the total. */
   detail?: ReactNode
+  /** A second quiet line, such as what's left to pay. */
+  extra?: ReactNode
   amountRef: RefObject<HTMLParagraphElement | null>
 }) {
   usePulse(amount, amountRef)
@@ -30,6 +33,7 @@ export function Hero({
         {amount}
       </p>
       {detail && <p className="mt-1 text-sm text-muted">{detail}</p>}
+      {extra && <p className="mt-1 text-sm text-muted">{extra}</p>}
     </div>
   )
 }

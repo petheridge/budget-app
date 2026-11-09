@@ -33,6 +33,11 @@ export function typeTotal(entries: Amount[], type: EntryType): number {
   return sum(entries.filter((e) => e.type === type).map((e) => e.amount_pence))
 }
 
+/** What's still to pay: a budget's expenses that haven't been ticked off as paid. */
+export function unpaidTotal(entries: (Amount & { paid?: boolean })[]): number {
+  return sum(entries.filter((e) => e.type === 'expense' && !e.paid).map((e) => e.amount_pence))
+}
+
 /** Budget balance, or net worth for a savings & debts budget. */
 export function balance(entries: Amount[]): number {
   return sum(entries.map(signedValue))
@@ -69,18 +74,6 @@ export function balanceColour(pence: number): string {
   if (pence > 0) return 'text-income'
   if (pence < 0) return 'text-expense'
   return 'text-muted'
-}
-
-/**
- * Parses what someone typed into the amount field. Accepts "12", "12.5", "12.50", ".5",
- * "1,234.56" and a leading "£". Returns null if it isn't a valid non-negative amount.
- */
-export function parsePence(input: string): number | null {
-  const cleaned = input.replace(/[£,\s]/g, '')
-  const match = /^(\d*)(?:\.(\d{0,2}))?$/.exec(cleaned)
-  if (!match || (match[1] === '' && !match[2])) return null
-  const pence = Number(match[1] || '0') * 100 + Number((match[2] ?? '').padEnd(2, '0'))
-  return Number.isSafeInteger(pence) ? pence : null
 }
 
 /** For opening the keypad on an existing amount, e.g. 123456 -> "1234.56". */

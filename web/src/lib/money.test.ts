@@ -7,7 +7,8 @@ import {
   formatSigned,
   formatUnsigned,
   incomeTotal,
-  parsePence,
+  unpaidTotal,
+  evaluateAmount,
   penceToInput,
   isGoodChange,
   signedValue,
@@ -76,31 +77,24 @@ describe('balanceColour', () => {
   })
 })
 
-describe('parsePence', () => {
-  it.each([
-    ['12', 1200],
-    ['12.5', 1250],
-    ['12.50', 1250],
-    ['12.', 1200],
-    ['.5', 50],
-    ['0', 0],
-    ['1,234.56', 123456],
-    ['£ 19.99', 1999],
-    ['4.35', 435], // 4.35 * 100 is 434.99… as a float
-    ['1.10', 110],
-  ])('parses %s', (input, expected) => {
-    expect(parsePence(input)).toBe(expected)
-  })
-
-  it.each(['', '.', 'abc', '1.234', '-5', '1.2.3', '99999999999999999999'])('rejects %j', (input) => {
-    expect(parsePence(input)).toBeNull()
+describe('unpaidTotal', () => {
+  it('adds up the expenses not ticked off as paid, and nothing else', () => {
+    expect(
+      unpaidTotal([
+        { amount_pence: 320000, type: 'income' },
+        { amount_pence: 90000, type: 'expense', paid: true },
+        { amount_pence: 4800, type: 'expense' },
+        { amount_pence: 1250, type: 'expense', paid: false },
+      ]),
+    ).toBe(6050)
+    expect(unpaidTotal([])).toBe(0)
   })
 })
 
 describe('penceToInput', () => {
-  it('round-trips through parsePence', () => {
+  it('round-trips through evaluateAmount', () => {
     for (const pence of [0, 5, 50, 435, 123456]) {
-      expect(parsePence(penceToInput(pence))).toBe(pence)
+      expect(evaluateAmount(penceToInput(pence))).toEqual({ ok: true, pence })
     }
   })
 })

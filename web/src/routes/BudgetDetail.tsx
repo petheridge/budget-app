@@ -2,12 +2,10 @@ import { useCallback, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { BudgetMenu } from '../components/BudgetMenu'
 import { EntryMenu } from '../components/EntryMenu'
-import { InlineAmount } from '../components/InlineAmount'
-import { InlineName } from '../components/InlineName'
-import { InlineNote } from '../components/InlineNote'
+import { EntryRow } from '../components/EntryRow'
 import { DraftEntryRow } from '../components/DraftEntryRow'
 import { EditableTitle, Header, HeaderButton } from '../components/Header'
-import { DotsIcon, MenuIcon } from '../components/icons'
+import { MenuIcon } from '../components/icons'
 import { ReorderList } from '../components/ReorderList'
 import { AddLinks, EntrySection, Hero, HeroPart, TitleWithAmount, useHero } from '../components/Sections'
 import { useOverlay } from '../components/useOverlay'
@@ -17,9 +15,11 @@ import {
   balanceColour,
   expenseTotal,
   formatSigned,
+  formatUnsigned,
   incomeTotal,
   signedValue,
   typeColour,
+  unpaidTotal,
   type EntryType,
 } from '../lib/money'
 import { isTracker, type Entry } from '../lib/pb'
@@ -67,42 +67,25 @@ export function BudgetDetail() {
     reorderEntries(type === 'income' ? [...ordered, ...ofType('expense')] : [...ofType('income'), ...ordered])
   const openEntry = sheet?.kind === 'entryMenu' ? rows.find((e) => e.id === sheet.id) : undefined
 
-  const renderRow = (entry: Entry) => {
-    const colour = typeColour(entry.type)
-    return (
-      <div className="flex min-h-[54px] items-stretch border-b border-line bg-surface">
-        <div className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-2 pl-4">
-          <div className="min-w-0 flex-1">
-            <InlineName entry={entry} className={`font-semibold ${colour}`} />
-            <InlineNote
-              entry={entry}
-              editing={editingNote === entry.id}
-              onDone={() => setEditingNote(null)}
-            />
-            <LinkedTo entry={entry} />
-          </div>
-          <InlineAmount
-            entry={entry}
-            open={editingAmount === entry.id}
-            onOpen={() => setEditingAmount(entry.id)}
-            onClose={closeAmount}
-            className={`font-semibold whitespace-nowrap ${colour}`}
-          >
-            {formatSigned(signedValue(entry))}
-          </InlineAmount>
-        </div>
-        <button
-          type="button"
-          aria-label={`Options for ${entry.name}`}
-          aria-haspopup="menu"
-          onClick={(event) => setSheet({ kind: 'entryMenu', id: entry.id, anchor: event.currentTarget })}
-          className="my-3 flex w-10 shrink-0 items-center justify-center border-l border-line text-brand"
-        >
-          <DotsIcon />
-        </button>
-      </div>
-    )
-  }
+  const renderRow = (entry: Entry) => (
+    <EntryRow
+      entry={entry}
+      under={
+        <>
+          <LinkedTo entry={entry} />
+          {entry.paid && <p className="mt-0.5 text-xs text-muted">✓ Paid</p>}
+        </>
+      }
+      amount={formatSigned(signedValue(entry))}
+      amountClassName={`font-semibold whitespace-nowrap ${typeColour(entry.type)}`}
+      editingNote={editingNote === entry.id}
+      onNoteDone={() => setEditingNote(null)}
+      amountOpen={editingAmount === entry.id}
+      onAmountOpen={() => setEditingAmount(entry.id)}
+      onAmountClose={closeAmount}
+      onMenu={(anchor) => setSheet({ kind: 'entryMenu', id: entry.id, anchor })}
+    />
+  )
 
   return (
     <div className="flex h-full flex-col">
@@ -112,6 +95,7 @@ export function BudgetDetail() {
             amount={hero.scrolledPast && !renaming ? formatSigned(total) : null}
             title={
               <EditableTitle
+                key={budget.id}
                 name={budget.name}
                 renaming={renaming}
                 onDone={(name) => {
@@ -140,6 +124,14 @@ export function BudgetDetail() {
             shown.length === 2 && (
               <>
                 <HeroPart type="income" total={incomeTotal(rows)} /> · <HeroPart type="expense" total={expenseTotal(rows)} />
+              </>
+            )
+          }
+          // Only once something has been ticked off, so budgets that don't use it look as before.
+          extra={
+            rows.some((e) => e.type === 'expense' && e.paid) && (
+              <>
+                Left to pay <span className="font-semibold text-expense">{formatUnsigned(unpaidTotal(rows))}</span>
               </>
             )
           }
@@ -174,6 +166,11 @@ export function BudgetDetail() {
           anchor={sheet.anchor}
           onClose={close}
           onRename={() => setRenaming(true)}
+          onDuplicated={(copy) => {
+            // Opens the copy, with its name ready to change.
+            navigate(`/budget/${copy}`)
+            setRenaming(true)
+          }}
           onBeforeDelete={() => navigate(backTo, { replace: true })}
         />
       )}

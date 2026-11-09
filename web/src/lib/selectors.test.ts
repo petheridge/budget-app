@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import type { Budget, Entry, Folder, Snapshot } from './pb'
 import {
   budgetBalance,
+  budgetPath,
   cardsIn,
   changeSincePrevious,
+  folderDestinations,
   folderPath,
   historyOf,
   levelBalance,
@@ -150,5 +152,29 @@ describe('sortByAmount', () => {
   it('puts savings above debts', () => {
     const items = [e('mortgage', 18000000, 'debt'), e('isa', 1200000, 'saving')]
     expect(sortByAmount(items, 'largest').map((x) => x.id)).toEqual(['isa', 'mortgage'])
+  })
+})
+
+describe('folderDestinations', () => {
+  const ids = (folders: Folder[]) => folders.map((f) => f.id)
+
+  it('leaves out the folder itself and everything inside it', () => {
+    const folders = [folder('A'), folder('B', 'A'), folder('C', 'B'), folder('D'), folder('E', 'D')]
+    expect(ids(folderDestinations(folders, folders[0]))).toEqual(['D', 'E'])
+    expect(ids(folderDestinations(folders, folders[1]))).toEqual(['A', 'D', 'E'])
+    expect(ids(folderDestinations(folders, folders[2]))).toEqual(['A', 'B', 'D', 'E'])
+  })
+
+  it('copes with folders that already loop', () => {
+    const folders = [folder('A', 'B'), folder('B', 'A'), folder('C')]
+    expect(ids(folderDestinations(folders, folders[0]))).toEqual(['C'])
+  })
+})
+
+describe('budgetPath', () => {
+  it('puts the folders before the name', () => {
+    const folders = [folder('Monthly'), folder('2026', 'Monthly')]
+    expect(budgetPath(folders, budget('March', '2026'))).toBe('Monthly / 2026 / March')
+    expect(budgetPath(folders, budget('Loose'))).toBe('Loose')
   })
 })

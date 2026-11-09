@@ -27,6 +27,8 @@ export interface Entry extends RecordModel {
   note: string
   /** For a budget expense: the saving or debt it pays into ('' for none). */
   link?: string
+  /** For a budget expense: ticked off as paid. */
+  paid?: boolean
   sort_order: number
   created: string
 }

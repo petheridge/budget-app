@@ -31,8 +31,7 @@ export function InlineNote({
           onDone={(note) => {
             onDone()
             if (note === null) return
-            const { name, amount_pence, type } = entry
-            report('save the note', updateEntry(entry.id, { name, amount_pence, type, note }))
+            report('save the note', updateEntry(entry.id, { note }))
           }}
           className="bg-bg text-text ring-2 ring-brand ring-inset"
         />

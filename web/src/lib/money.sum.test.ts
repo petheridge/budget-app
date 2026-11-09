@@ -7,8 +7,11 @@ const pence = (input: string) => {
 }
 
 describe('evaluateAmount', () => {
-  it('reads plain amounts like parsePence', () => {
+  it('reads plain amounts', () => {
     expect(pence('12')).toBe(1200)
+    // 4.35 * 100 is 434.99… as a float.
+    expect(pence('4.35')).toBe(435)
+    expect(pence('12.')).toBe(1200)
     expect(pence('12.5')).toBe(1250)
     expect(pence('£1,234.56')).toBe(123456)
     expect(pence('.5')).toBe(50)

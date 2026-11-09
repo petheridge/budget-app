@@ -2,6 +2,32 @@ import { expect, type Locator, type Page } from '@playwright/test'
 
 export const BASE_URL = 'http://127.0.0.1:8091'
 export const USER = { email: 'e2e@example.com', password: 'e2e-user-password' }
+/** The superuser made by start-pocketbase.sh. */
+export const ADMIN = { identity: 'e2e-admin@example.com', password: 'e2e-admin-password' }
+
+/** Signs in as the superuser and gives back a function for calling the admin API. */
+export async function adminApi() {
+  const auth = await fetch(`${BASE_URL}/api/collections/_superusers/auth-with-password`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(ADMIN),
+  })
+  if (!auth.ok) throw new Error(`Couldn't sign in as the test admin: ${auth.status}`)
+  const { token } = (await auth.json()) as { token: string }
+  return (path: string, method = 'GET', body?: unknown) =>
+    fetch(`${BASE_URL}${path}`, {
+      method,
+      headers: { 'content-type': 'application/json', Authorization: token },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
+}
+
+/** Turns the sign-in limit on or off. It's off for the tests, which sign in far more often than a person. */
+export async function setRateLimit(enabled: boolean) {
+  const api = await adminApi()
+  const response = await api('/api/settings', 'PATCH', { rateLimits: { enabled } })
+  if (!response.ok) throw new Error(`Couldn't change the rate limit: ${response.status}`)
+}
 
 /** A name no other test uses, so tests can share the database. */
 export const unique = (name: string) => `${name} ${Math.random().toString(36).slice(2, 7)}`

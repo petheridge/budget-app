@@ -83,6 +83,8 @@ export interface EntryFields {
   amount_pence: number
   type: EntryType
   note: string
+  /** A budget expense that has been paid. */
+  paid?: boolean
 }
 
 /** Saving and debt values are recorded with a date each time they change. */
@@ -95,6 +97,8 @@ function useStore() {
   const snapshots = useRecords<Snapshot>('snapshots', false)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [problem, setProblem] = useState('')
+  // False while the server can't be reached, so the screen can say that changes won't save.
+  const [connected, setConnected] = useState(() => navigator.onLine)
 
   /**
    * Deletes wait a few seconds so they can be undone: the item is hidden at once,
@@ -141,41 +145,76 @@ function useStore() {
       if (document.visibilityState === 'visible') void refresh()
     }
     document.addEventListener('visibilitychange', onVisible)
-    const connect = pb.realtime.subscribe('PB_CONNECT', () => void refresh())
+    const connect = pb.realtime.subscribe('PB_CONNECT', () => {
+      setConnected(true)
+      void refresh()
+    })
+    // The realtime connection dropping is how a server that's down shows itself; the
+    // SDK keeps trying, and PB_CONNECT says when it's back.
+    pb.realtime.onDisconnect = (subscriptions) => {
+      if (subscriptions.length > 0) setConnected(false)
+    }
+    const onOffline = () => setConnected(false)
+    const onOnline = () => {
+      setConnected(true)
+      void refresh()
+    }
+    window.addEventListener('offline', onOffline)
+    window.addEventListener('online', onOnline)
     return () => {
       document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('offline', onOffline)
+      window.removeEventListener('online', onOnline)
+      pb.realtime.onDisconnect = undefined
       connect.then((unsubscribe) => unsubscribe()).catch(() => {})
     }
   }, [refresh])
 
-  const record = async (entry: string, amount_pence: number) => {
-    snapshots.upsert(await snapshots.service.create({ entry, amount_pence }))
+  /**
+   * Adds a value to a saving's or debt's history. The value itself is already saved by
+   * then, so a failure here is reported rather than thrown: the caller's save worked.
+   */
+  const record = (entry: string, amount_pence: number) => {
+    guard(
+      'add the value to its history',
+      snapshots.service.create({ entry, amount_pence }).then((snapshot) => snapshots.upsert(snapshot)),
+      false,
+    )
   }
 
-  const commitDelete = () => {
+  /**
+   * Makes a waiting delete final. Resolves once the server has answered, so that a
+   * write which follows (such as a new value for the same saving) lands after it.
+   */
+  const commitDelete = (): Promise<unknown> => {
     const pending = pendingDelete.current
-    if (!pending) return
+    if (!pending) return Promise.resolve()
     window.clearTimeout(pending.timer)
     pendingDelete.current = null
     const { kind, id } = pending
+    const writes: Promise<unknown>[] = []
     if (kind === 'snapshot') {
       snapshots.drop(id)
-      guard('delete the value', snapshots.service.delete(id))
+      writes.push(snapshots.service.delete(id))
       // Saved directly, not through updateEntry, so it doesn't record a new value.
       const revert = pending.revert
-      if (revert) guard('delete the value', entries.service.update(revert.entry, { amount_pence: revert.to }))
+      if (revert) writes.push(entries.service.update(revert.entry, { amount_pence: revert.to }))
+      for (const write of writes) guard('delete the value', write)
     } else if (kind === 'entry') {
       entries.drop(id)
       // The server deletes its snapshots too, and clears any links to it.
       snapshots.dropWhere((s) => s.entry === id)
       entries.updateWhere((e) => e.link === id, (e) => ({ ...e, link: '' }))
-      guard('delete the entry', entries.service.delete(id))
+      writes.push(entries.service.delete(id))
+      guard('delete the entry', writes[0])
     } else {
       budgets.drop(id)
-      guard('delete the budget', budgets.service.delete(id))
+      writes.push(budgets.service.delete(id))
+      guard('delete the budget', writes[0])
     }
     setHiddenId(null)
     setUndoLabel('')
+    return Promise.allSettled(writes)
   }
   const commitRef = useRef(commitDelete)
   commitRef.current = commitDelete
@@ -186,12 +225,12 @@ function useStore() {
     label: string,
     revert?: { entry: string; to: number; from: number },
   ) => {
-    commitDelete()
+    void commitDelete()
     pendingDelete.current = {
       kind,
       id,
       revert,
-      timer: window.setTimeout(() => commitRef.current(), UNDO_SECONDS * 1000),
+      timer: window.setTimeout(() => void commitRef.current(), UNDO_SECONDS * 1000),
     }
     if (revert) entries.updateWhere((e) => e.id === revert.entry, (e) => ({ ...e, amount_pence: revert.to }))
     setHiddenId(id)
@@ -201,9 +240,9 @@ function useStore() {
   // Leaving the app makes a waiting delete final, so it isn't lost if iOS closes the app.
   useEffect(() => {
     const flush = () => {
-      if (document.visibilityState === 'hidden') commitRef.current()
+      if (document.visibilityState === 'hidden') void commitRef.current()
     }
-    const flushNow = () => commitRef.current()
+    const flushNow = () => void commitRef.current()
     document.addEventListener('visibilitychange', flush)
     window.addEventListener('pagehide', flushNow)
     return () => {
@@ -212,10 +251,13 @@ function useStore() {
     }
   }, [])
 
-  /** For changes already shown on screen: if the save fails, say so and restore the real state. */
-  const guard = (action: string, write: Promise<unknown>) => {
+  /**
+   * For changes already shown on screen: if the save fails, say so and restore the real
+   * state. `retry` is false where trying again wouldn't help (the rest of the change worked).
+   */
+  const guard = (action: string, write: Promise<unknown>, retry = true) => {
     write.catch(() => {
-      setProblem(`Couldn't ${action}. Please try again.`)
+      setProblem(`Couldn't ${action}.${retry ? ' Please try again.' : ''}`)
       void refresh()
     })
   }
@@ -227,6 +269,7 @@ function useStore() {
     entries: entries.records.filter((e) => e.id !== hiddenId),
     snapshots: snapshots.records.filter((s) => s.id !== hiddenId),
     status,
+    connected,
     problem,
     clearProblem: () => setProblem(''),
     /** For a change already shown on screen: if `write` fails, says so and reloads. */
@@ -256,8 +299,12 @@ function useStore() {
       folders.updateWhere((f) => f.id === id, (f) => ({ ...f, name }))
       folders.upsert(await folders.service.update(id, { name }))
     },
+    async moveFolder(id: string, parent: string) {
+      const siblings = cardsIn(folders.records, budgets.records, parent).map((c) => c.record)
+      folders.upsert(await folders.service.update(id, { parent, sort_order: nextSortOrder(siblings) }))
+    },
     deleteFolder(id: string) {
-      commitDelete()
+      void commitDelete()
       folders.drop(id)
       guard('delete the folder', folders.service.delete(id))
     },
@@ -282,6 +329,31 @@ function useStore() {
         await budgets.service.update(id, { folder, sort_order: nextSortOrder(siblings) }),
       )
     },
+    /**
+     * Copies a budget and its entries into the same folder, as "Name copy", and gives
+     * back the copy's id. Paid ticks aren't copied: a copy is usually next month's.
+     * If an entry fails part-way, what was copied stays (it can be deleted, with Undo).
+     */
+    async duplicateBudget(id: string): Promise<string> {
+      const source = budgets.records.find((b) => b.id === id)
+      if (!source) throw new Error('No such budget')
+      const siblings = cardsIn(folders.records, budgets.records, source.folder).map((c) => c.record)
+      const copy = await budgets.service.create({
+        name: `${source.name} copy`,
+        folder: source.folder,
+        kind: source.kind,
+        sort_order: nextSortOrder(siblings),
+      })
+      budgets.upsert(copy)
+      // One at a time, so they're created in order.
+      for (const entry of entries.records.filter((e) => e.budget === id && e.id !== hiddenId)) {
+        const { name, amount_pence, type, note, sort_order } = entry
+        entries.upsert(
+          await entries.service.create({ budget: copy.id, name, amount_pence, type, note, sort_order, link: entry.link ?? '' }),
+        )
+      }
+      return copy.id
+    },
     deleteBudget(id: string) {
       const budget = budgets.records.find((b) => b.id === id)
       const count = entries.records.filter((e) => e.budget === id).length
@@ -290,6 +362,8 @@ function useStore() {
     },
 
     async createEntry(budget: string, fields: EntryFields) {
+      // A waiting delete goes first, so writes reach the server in the order they were made.
+      await commitDelete()
       const siblings = entries.records.filter((e) => e.budget === budget)
       const entry = await entries.service.create({
         ...fields,
@@ -297,19 +371,30 @@ function useStore() {
         sort_order: nextSortOrder(siblings),
       })
       entries.upsert(entry)
-      if (isTrackedType(entry.type)) await record(entry.id, entry.amount_pence)
+      if (isTrackedType(entry.type)) record(entry.id, entry.amount_pence)
     },
-    async updateEntry(id: string, fields: EntryFields) {
+    /** Saves only the fields given, so two phones changing different things don't undo each other. */
+    async updateEntry(id: string, fields: Partial<EntryFields>) {
+      // Deleting a saving's newest value puts its current value back; that must be
+      // saved before this change, not after it.
+      await commitDelete()
       const before = entries.records.find((e) => e.id === id)
       const entry = await entries.service.update(id, { ...fields })
       entries.upsert(entry)
-      if (isTrackedType(entry.type) && entry.amount_pence !== before?.amount_pence) {
-        await record(entry.id, entry.amount_pence)
+      if (isTrackedType(entry.type) && fields.amount_pence !== undefined && entry.amount_pence !== before?.amount_pence) {
+        record(entry.id, entry.amount_pence)
       }
     },
     /** Links a budget expense to the saving or debt it pays into ('' to unlink). */
     async setEntryLink(id: string, link: string) {
+      await commitDelete()
       entries.upsert(await entries.service.update(id, { link }))
+    },
+    /** Moves an entry to the end of its section in another budget of the same kind. */
+    async moveEntry(id: string, budget: string) {
+      await commitDelete()
+      const siblings = entries.records.filter((e) => e.budget === budget)
+      entries.upsert(await entries.service.update(id, { budget, sort_order: nextSortOrder(siblings) }))
     },
     /**
      * Deletes one recorded value of a saving or debt, with Undo. Deleting the newest
@@ -369,6 +454,11 @@ const DataContext = createContext<ReturnType<typeof useStore> | null>(null)
 
 export function DataProvider({ children }: { children: ReactNode }) {
   return <DataContext.Provider value={useStore()}>{children}</DataContext.Provider>
+}
+
+/** False while the server can't be reached. True outside the signed-in screens, which hold no data. */
+export function useConnected(): boolean {
+  return useContext(DataContext)?.connected ?? true
 }
 
 export function useData() {
