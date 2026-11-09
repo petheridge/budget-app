@@ -9,3 +9,9 @@ services:
       - "8090:8090"
     volumes:
       - ./pb_data:/pb/pb_data
+    # Docker keeps container logs for ever otherwise. (The health check is in the image.)
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

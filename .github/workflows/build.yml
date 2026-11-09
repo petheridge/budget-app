@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 # A newer push supersedes an older one, so an older build can't overwrite `latest`.
 concurrency:
@@ -55,6 +54,10 @@ jobs:
     # Manual runs can target any branch, but only main may publish `latest`.
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # Only this job pushes an image; the test jobs, which also run for pull requests, can't.
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v7
       - name: Lowercase the image name
