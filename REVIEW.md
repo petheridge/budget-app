@@ -16,6 +16,48 @@ All existing checks pass (60 unit tests, 17 end-to-end tests, type-check and bui
 2. **F2** — stop a pending Undo from overwriting a saving's or debt's newer value.
 3. **F4** — back up `pb_data` before an automatic update applies migrations.
 
+## Status: implemented
+
+Everything below has since been worked through, on 9 November 2026. The findings, backlog and feature list are kept as written, with the backlog ticked off; this section says what was done and what still needs you.
+
+**Checks after the work:** 55 unit tests and 29 end-to-end tests pass, with type-check and build. (The unit count fell from 60 because the unused `parsePence` and its 17 tests were removed; 12 new tests were added.) The Docker image still wasn't built here, as there is no Docker in this environment.
+
+| Item | What was done |
+|---|---|
+| F1 | Amount, name and budget-kind changes now go through `report(…)`; a failed save shows "Couldn't save the amount. Please try again." Tested. |
+| F2 | Entry writes first make a waiting delete final, and wait for the server's answer, so they arrive in order. The reproduced sequence now ends at £300 with history £300, £100. Tested. |
+| F3 | An emptied keypad leaves the amount unchanged; typing 0 still saves £0.00. Tested. |
+| F4 | `update.sh` runs `backup.sh pre-update` before starting a new image and skips the update if that fails. `backup.sh` writes `logs/last-backup-success`; `update.sh` warns when it is over 48 hours old. Pre-update archives are kept separately (newest 5) so a busy day can't push out the nightly ones. Exercised with a stand-in for `docker`, not on a real host. |
+| F5 | The simple option: a failed history write is reported, not thrown, so retrying can't add the item twice. No server hook. Tested. |
+| F6 | New `web/e2e/saving.e2e.ts`: failed saves, the F2 sequence, cleared amounts, a failed history write, the connection notice, the sign-in limit. |
+| F7 | `updateEntry` takes only the changed fields. |
+| F8 | Health check added to the `Dockerfile`; log size capped in `deploy/docker-compose.yml`. Still runs as root (see "needs you"). |
+| F9 | `packages: write` moved to the `publish` job. |
+| F10 | New migration limits password sign-in to 10 attempts a minute per address. Tested: the 11th gets HTTP 429. |
+| F11 | `tsconfig.tsbuildinfo` and `parsePence` removed; stale comments fixed. |
+| F12 | Root `README.md` and an `npm run typecheck` script added. No linter or formatter: that would be a new dependency. |
+| F13 | Rows are one `EntryRow` component used by both detail screens. |
+| F14 | Rows can be reordered from a keyboard (Tab, Space, arrows, Space). Tested. |
+| F15 | Accepted, and written down in `CLAUDE.md`. |
+| F16 | No action, as recommended. |
+| N1–N6 | All six built, each with an end-to-end test (`web/e2e/features.e2e.ts`) and documented in `CLAUDE.md`. |
+
+**One more bug found and fixed on the way:** a submenu (Move to folder, and the new Move to budget) was placed using the height of the menu it replaced, so a long list of folders ran off the screen and its lower items couldn't be tapped. It is now placed afresh (`web/src/components/Menu.tsx:59-72`).
+
+**Decisions made for you** (each is easy to change):
+
+- **Clearing an amount** (question 1): leaves it unchanged.
+- **History** (question 2): stays in the app; no server hook.
+- **Updates** (question 3): still automatic, with a backup first.
+- **Paid status** (question 7): expenses only. It is set from the ⋮ menu (**Mark as paid** / **Mark as unpaid**) and shows as a small grey "✓ Paid" under the name, so there is no new tick box on every row. The hero gains "Left to pay £ x" once anything is ticked. Balance is unaffected. Duplicating a budget doesn't copy the ticks.
+- **Sign-in limit:** only password sign-in is limited. PocketBase's default rules also limit record creation to 20 in 5 seconds, which Duplicate would hit on a large budget, so they are not used.
+
+**Still needs you:**
+
+- **On the phone:** CSV export from the home-screen app (it uses the share sheet there, which can't be tested off the phone), and how the "Not connected" bar sits under the status bar.
+- **On the host:** copy the new `deploy/` files to `/opt/budget` (`update.sh`, `backup.sh`, `docker-compose.yml`); they aren't part of the image. After the next update, check `docker compose ps` shows `healthy` and that a `pre-update-…` archive appeared on the NAS.
+- **Not done:** running the container as a non-root user (it needs `pb_data`'s ownership changing on the host), a second backup copy off the NAS (question 4), and a linter.
+
 ## Findings
 
 Ordered by severity, then effort. "Reproduced" means I ran it against a throwaway PocketBase with the real migrations and the built app; the rest are confirmed by reading the cited lines.
@@ -65,20 +107,20 @@ I also ran a one-off script (not added to the repo) to reproduce F1, F2, F3 and 
 
 Each item is one small commit.
 
-- [ ] **1. Report failed amount and name saves (F1).** Done when an end-to-end test that blocks `PATCH /api/collections/entries/records/*` sees "Couldn't save the amount" after pressing Done, and the same for a rename.
-- [ ] **2. Make a pending delete final before other writes (F2).** Done when an end-to-end test runs: set £100, set £200, delete the £200 history value, set £300 within the Undo window, wait 7 seconds, reload; and the row shows £300.00 with history £300, £100.
-- [ ] **3. Empty keypad on an existing amount means no change (F3).** Done when a test clears a £100 amount, taps elsewhere, and the row still shows £100.00. (Skip if open question 1 is answered "zero is intended".)
-- [ ] **4. Send only the changed field (F7).** Done when `updateEntry` accepts `Partial<EntryFields>`, each caller passes one field, and the existing end-to-end tests still pass.
-- [ ] **5. Don't fail an add when only the history write fails (F5, simple option).** Done when a test that blocks `POST …/snapshots/records` adds a saving, sees it once in the list along with a "Couldn't…" message, and no second item appears.
-- [ ] **6. Back up before an update that changes the image (F4).** Done when running `update.sh` with a new image available leaves a new archive in `BACKUP_DEST` dated before the restart, and a run with no new image doesn't.
-- [ ] **7. Make failed backups visible (F4).** Done when `backup.sh` writes `logs/last-backup-success` and `update.sh` logs a clear warning when that file is more than 48 hours old.
-- [ ] **8. Health check and log limits (F8).** Done when `docker compose ps` on the host shows the container as `healthy`.
-- [ ] **9. Narrow CI permissions (F9).** Done when `packages: write` appears only under the `publish` job and a pull-request run still passes.
-- [ ] **10. Tidy leftovers (F11).** Done when `web/tsconfig.tsbuildinfo` and `parsePence` are gone, `*.tsbuildinfo` is ignored, the two stale comments are fixed, and `npm test` and `npm run build` pass.
-- [ ] **11. Root README and `typecheck` script (F12).** Done when a new clone can be brought up by following `README.md` alone.
-- [ ] **12. Share the entry row between the two detail screens (F13).** Done when both screens render rows through one `EntryRow` component and the end-to-end suite passes unchanged.
-- [ ] **13. Turn on sign-in rate limiting (F10).** Do this before setting up remote access. Done when a new migration enables it and a burst of wrong passwords gets HTTP 429.
-- [ ] **14. Keyboard reordering (F14).** Optional. Done when a row can be moved with Space and the arrow keys.
+- [x] **1. Report failed amount and name saves (F1).** Done when an end-to-end test that blocks `PATCH /api/collections/entries/records/*` sees "Couldn't save the amount" after pressing Done, and the same for a rename.
+- [x] **2. Make a pending delete final before other writes (F2).** Done when an end-to-end test runs: set £100, set £200, delete the £200 history value, set £300 within the Undo window, wait 7 seconds, reload; and the row shows £300.00 with history £300, £100.
+- [x] **3. Empty keypad on an existing amount means no change (F3).** Done when a test clears a £100 amount, taps elsewhere, and the row still shows £100.00. (Skip if open question 1 is answered "zero is intended".)
+- [x] **4. Send only the changed field (F7).** Done when `updateEntry` accepts `Partial<EntryFields>`, each caller passes one field, and the existing end-to-end tests still pass.
+- [x] **5. Don't fail an add when only the history write fails (F5, simple option).** Done when a test that blocks `POST …/snapshots/records` adds a saving, sees it once in the list along with a "Couldn't…" message, and no second item appears.
+- [x] **6. Back up before an update that changes the image (F4).** Done when running `update.sh` with a new image available leaves a new archive in `BACKUP_DEST` dated before the restart, and a run with no new image doesn't.
+- [x] **7. Make failed backups visible (F4).** Done when `backup.sh` writes `logs/last-backup-success` and `update.sh` logs a clear warning when that file is more than 48 hours old.
+- [x] **8. Health check and log limits (F8).** Done when `docker compose ps` on the host shows the container as `healthy`.
+- [x] **9. Narrow CI permissions (F9).** Done when `packages: write` appears only under the `publish` job and a pull-request run still passes.
+- [x] **10. Tidy leftovers (F11).** Done when `web/tsconfig.tsbuildinfo` and `parsePence` are gone, `*.tsbuildinfo` is ignored, the two stale comments are fixed, and `npm test` and `npm run build` pass.
+- [x] **11. Root README and `typecheck` script (F12).** Done when a new clone can be brought up by following `README.md` alone.
+- [x] **12. Share the entry row between the two detail screens (F13).** Done when both screens render rows through one `EntryRow` component and the end-to-end suite passes unchanged.
+- [x] **13. Turn on sign-in rate limiting (F10).** Do this before setting up remote access. Done when a new migration enables it and a burst of wrong passwords gets HTTP 429.
+- [x] **14. Keyboard reordering (F14).** Optional. Done when a row can be moved with Space and the arrow keys.
 
 ## Suggested features
 
